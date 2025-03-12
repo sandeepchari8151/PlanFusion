@@ -291,6 +291,10 @@ def update_task():
     return jsonify({"message": "Task updated successfully"}), 200
 
 
+# 🔹 Default Route Redirects to Login
+@app.route('/')
+def home():
+    return redirect(url_for('login'))  # Redirect '/' to the login page
 
 
 
