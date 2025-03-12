@@ -1,0 +1,181 @@
+* {
+    margin: 0;
+    padding: 0;
+    box-sizing: border-box;
+    font-family: 'Poppins', sans-serif;
+}
+
+section {
+    display: flex;
+    justify-content: center;
+    align-items: center;
+    width: 100%;
+    height: 100vh;
+    background: url("/static/images/login.jpg") no-repeat;
+    background-size: cover;
+    background-position: center;
+    animation: animateBg 5s linear infinite;
+}
+
+@keyframes animateBg {
+    100% {
+        filter:none;
+    }
+}
+
+.login-container {
+    position: relative;
+    width: 400px;
+    height: auto;
+    margin: auto;
+    padding: 44px;
+    border: 1px solid rgba(255, 255, 255, 0.5);
+    border-radius: 20px;
+    background: transparent;
+    justify-content: center;
+    align-items: center;
+    backdrop-filter: blur(50px);
+}
+
+h2 {
+    font-size: 2em;
+    color: white;
+    text-align: center;
+}
+
+.form-group {
+    position: relative;
+    width: 310px;
+    margin: 30px 0;
+    border-bottom: 2px solid #fff;
+}
+
+.form-group label {
+    position: absolute;
+    top: 50%;
+    left: 5px;
+    transform: translateY(-50%);
+    font-size: 1em;
+    color: #fff;
+    pointer-events: none;
+    transition: .5s;
+}
+
+.form-group .form-control {
+    width: 100%;
+    height: 50px;
+    background: transparent;
+    border: none;
+    outline: none;
+    font-size: 1em;
+    color: #fff;
+    padding: 0 35px 0 5px;
+    border-bottom: 2px solid #fff;
+}
+
+.form-group .form-control:focus ~ label,
+.form-group .form-control:valid ~ label {
+    top: -12px;
+    font-size: 0.9em;
+    color: #ddd;
+}
+.form-group .icon{
+    position: absolute;
+    right: 8px;
+    color: #fff;
+    font-size: 1.2em;
+    line-height: 57px;
+}
+button{
+    width: 100%;
+    height:50px;
+    background: #fff;
+    border: none;
+    outline: none;
+    border-radius: 40px;
+    cursor: pointer;
+    font-size: 1em;
+    color: #000;
+    font-weight: 500;
+}
+
+/* Hover Effect */
+button:hover {
+    background: #e3aaff;
+    box-shadow: -2px 0px 15px rgba(255, 255, 255, 0.4); /* Stronger glow effect */
+ 
+}
+
+/* Active (Click) Effect */
+button:active {
+    box-shadow: -2px 0px 15px #ffffff;
+}
+
+.login{
+    font-size: .9em;
+    color: #fff;
+    text-align: center;
+    margin: 25px 0 10px;
+}
+.login p a{
+    color: #FFF;
+    text-decoration: none;
+    font-weight: 600;
+}
+.login p a:hover{
+    text-decoration: underline;
+}
+
+@media (max-width:360px){
+    .form-group{
+        width: 100%;
+        height:100vh;
+        border:none;
+        border-radius: 0;
+    }
+    .form-group{
+        width: 290px;
+    }
+}
+
+.form-group .form-control:-webkit-autofill,
+.form-group .form-control:-webkit-autofill:hover,
+.form-group .form-control:-webkit-autofill:focus,
+.form-group .form-control:-webkit-autofill:active {
+    background-color: transparent !important;
+    color: #FFF !important;
+    -webkit-text-fill-color: #FFF !important;
+    transition: background-color 5000s ease-in-out 0s;
+}
+
+.password-container {
+    position: relative;
+    display: flex;
+    align-items: center;
+}
+
+.password-container input {
+    flex: 1;
+    padding-right: 40px; /* Space for the button */
+}
+
+.password-container button {
+    position: absolute;
+    right: 49px;
+    top: 13px;
+    background: transparent;
+    border: none;
+    cursor: pointer;
+    font-size: 1.2em;
+    width: 1px;
+    height: 1px;
+    color: white;
+}
+
+.password-container .icon{
+    position: absolute;
+    right: 8px;
+    color: #fff;
+    font-size: 1.2em;
+    line-height: 57px;
+}

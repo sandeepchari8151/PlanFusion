@@ -1,0 +1,232 @@
+/* General Styles */
+body {
+    display: flex;
+    margin: 0;
+    font-family: Arial, sans-serif;
+    background: radial-gradient(circle, rgb(182, 181, 181), rgb(32, 111, 143), rgb(65, 34, 158));
+    color: white;
+}
+
+/* Dashboard Sidebar */
+.sidebar {
+    width: 220px;
+    background: black;
+    height: 100vh;
+    padding-top: 20px;
+    box-shadow: 2px 0 10px rgba(255, 255, 255, 0.1);
+    position: fixed;
+    left: 0;
+    top: 0;
+    display: flex;
+    flex-direction: column;
+}
+
+.sidebar-logo {
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    padding: 20px 0;
+    text-align: center;
+}
+
+.sidebar-logo img {
+    width: 120px;
+    height: auto;
+    border-radius: 10px;
+    transition: transform 0.3s ease-in-out;
+}
+
+.sidebar-logo img:hover {
+    transform: scale(1.1);
+}
+
+.sidebar-logo h2 {
+    font-size: 20px;
+    color: white;
+    margin-left: 10px;
+    font-weight: bold;
+}
+
+.sidebar ul {
+    list-style: none;
+    padding: 0;
+    margin: 0;
+}
+
+.sidebar ul li {
+    padding: 15px 20px;
+    font-size: 18px;
+    display: flex;
+    align-items: center;
+    cursor: pointer;
+    transition: 0.3s;
+}
+
+.sidebar ul li i {
+    margin-right: 10px;
+}
+.sidebar ul li a {
+    color: white; /* Ensure this is set to white */
+    text-decoration: none; /* This removes the underline */
+}
+
+.sidebar ul li:hover {
+    background: rgba(255, 255, 255, 0.2);
+    border-radius: 8px;
+}
+
+.sidebar ul .active {
+    background: rgba(255, 255, 255, 0.3);
+    border-radius: 8px;
+}
+
+.sidebar ul .logout {
+    color: red;
+    margin-top: auto;
+    position: absolute;
+    bottom: 20px;
+    width: 100%;
+}
+
+.sidebar ul .logout a {
+    color: rgb(255, 0, 0); /* Ensure the font color is white */
+    text-decoration: none; /* No underline */
+}
+/* Responsive Sidebar */
+@media screen and (max-width: 768px) {
+    .sidebar {
+        position: fixed;
+        left: -250px;
+        transition: 0.3s;
+    }
+
+    .sidebar.active {
+        left: 0;
+    }
+
+    .sidebar-toggle {
+        display: block;
+        position: absolute;
+        top: 15px;
+        left: 15px;
+        font-size: 22px;
+        cursor: pointer;
+        color: white;
+    }
+}
+
+/* Main Content */
+.main-content {
+    flex: 1;
+    margin: 20px;
+    border-radius: 12px;
+    box-shadow: 0 0 10px rgba(255, 255, 255, 0.2);
+    padding: 20px;
+    margin-left: 220px;
+}
+
+/* Header */
+header {
+    text-align: center;
+    background: rgba(255, 255, 255, 0.2);
+    backdrop-filter: blur(10px);
+    padding: 15px;
+    border-radius: 12px;
+    font-size: 24px;
+    font-weight: bold;
+    margin-bottom: 20px;
+}
+
+/* Overview Section */
+.overview {
+    background: rgba(255, 255, 255, 0.2);
+    backdrop-filter: blur(10px);
+    padding: 20px;
+    border-radius: 12px;
+    box-shadow: 0 4px 10px rgba(255, 255, 255, 0.2);
+}
+
+.overview h3 {
+    text-align: center;
+    font-size: 22px;
+    margin-bottom: 15px;
+}
+
+.overview-cards {
+    display: grid;
+    grid-template-columns: repeat(2, 1fr);
+    gap: 20px;
+}
+
+.card {
+    background: rgba(255, 255, 255, 0.1);
+    padding: 20px;
+    border-radius: 10px;
+    text-align: center;
+    box-shadow: 0 4px 10px rgba(255, 255, 255, 0.2);
+}
+
+.card i {
+    font-size: 30px;
+    margin-bottom: 10px;
+    color: white;
+}
+
+.card h4 {
+    margin-bottom: 10px;
+    font-size: 18px;
+    font-weight: bold;
+}
+
+.card p {
+    font-size: 14px;
+}
+
+/* Responsive Design */
+@media screen and (max-width: 768px) {
+    .sidebar {
+        position: fixed;
+        left: -250px;
+        transition: 0.3s;
+    }
+
+    .sidebar.active {
+        left: 0;
+    }
+
+    .main-content {
+        margin-left: 0;
+    }
+
+    .overview-cards {
+        grid-template-columns: repeat(1, 1fr);
+    }
+}
+
+/* Logo Styling */
+.logo {
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    padding: 15px 0;
+    text-align: center;
+    flex-direction: column;
+}
+
+.logo img {
+    width: 100px;
+    height: auto;
+    border-radius: 10px;
+    transition: transform 0.3s ease-in-out;
+}
+
+.logo img:hover {
+    transform: scale(1.1);
+}
+
+.logo h2 {
+    font-size: 18px;
+    color: #fff;
+    margin-top: 8px;
+    font-weight: bold;
+}

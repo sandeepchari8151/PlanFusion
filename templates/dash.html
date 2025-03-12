@@ -1,0 +1,71 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Plan Fusion Dashboard</title>
+    <link rel="stylesheet" href="{{ url_for('static', filename='css/dash1.css') }}">
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.2/css/all.min.css">
+    <script src="https://code.jquery.com/jquery-3.6.0.min.js"></script>
+    <script src="https://kit.fontawesome.com/a076d05399.js"></script>
+</head>
+<body>
+
+ <!-- Sidebar -->
+ <div class="sidebar">
+    <div class="logo">
+        <img src="{{ url_for('static', filename='images/logo.png') }}" alt="Logo">
+        <h2>PlanFusion</h2>
+    </div>
+    <ul>
+        <li class="active"><a href="#"><i class="fas fa-home"></i> Dashboard</a></li>
+        <li><a href="{{ url_for('todo') }}"><i class="fas fa-tasks"></i> To-Do List</a></li>
+        <li><a href="{{ url_for('learning') }}"><i class="fas fa-book"></i> Learning & Skills</a></li>
+        <li><a href="{{ url_for('networking') }}"><i class="fas fa-users"></i> Networking & Social Growth</a></li>
+        <li class="logout"><a href="{{ url_for('logout') }}"><i class="fas fa-sign-out-alt"></i> Logout</a></li>
+    </ul>
+</div>
+
+<!-- Main Content -->
+<div class="main-content">
+    <header>
+        <h2>Dashboard</h2>
+    </header>
+
+    <div class="dashboard-container">
+        <!-- Overview Section -->
+        <div class="overview">
+            <h3>Overview</h3>
+            <div class="overview-cards">
+                <div class="card">
+                    <i class="fas fa-tasks"></i>
+                    <h4>Total & Remaining Tasks</h4>
+                    <p>This Week: <span id="totalTasks">0</span></p>
+                    <p>Remaining Tasks: <span id="remainingTasksCount">0</span></p>
+                </div>
+                <div class="card">
+                    <i class="fas fa-book"></i>
+                    <h4>Learning & Skills Updates</h4>
+                    <p>This Week: <span id="learningUpdates">0</span></p>
+                    <p>Last Week: <span id="learningLastWeek">0</span></p>
+                </div>
+                <div class="card">
+                    <i class="fas fa-users"></i>
+                    <h4>Networking & Social Growth</h4>
+                    <p>This Week: <span id="networkingUpdates">0</span></p>
+                    <p>Last Week: <span id="networkingLastWeek">0</span></p>
+                </div>
+                <div class="card">
+                    <i class="fas fa-chart-line"></i>
+                    <h4>Overall Productivity</h4>
+                    <p>This Week: <span id="overallProductivity">0%</span></p>
+                    <p>Last Week: <span id="overallLastWeek">0%</span></p>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+
+<script src="{{ url_for('static', filename='js/dashboard.js') }}"></script>
+</body>
+</html>
