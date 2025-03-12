@@ -3714,3 +3714,9 @@ INFO:werkzeug: * Restarting with stat
 2025-03-11 22:57:51,295 - INFO - 127.0.0.1 - - [11/Mar/2025 22:57:51] "GET /get_tasks HTTP/1.1" 200 -
 2025-03-11 22:57:52,163 - INFO - 127.0.0.1 - - [11/Mar/2025 22:57:52] "PUT /update_task_status/7 HTTP/1.1" 200 -
 2025-03-11 22:57:52,482 - INFO - 127.0.0.1 - - [11/Mar/2025 22:57:52] "GET /get_tasks HTTP/1.1" 200 -
+2025-03-12 19:59:15,887 - INFO - [31m[1mWARNING: This is a development server. Do not use it in a production deployment. Use a production WSGI server instead.[0m
+ * Running on http://127.0.0.1:5000
+2025-03-12 19:59:15,888 - INFO - [33mPress CTRL+C to quit[0m
+2025-03-12 19:59:15,892 - INFO -  * Restarting with stat
+2025-03-12 19:59:16,713 - WARNING -  * Debugger is active!
+2025-03-12 19:59:16,719 - INFO -  * Debugger PIN: 108-566-975
