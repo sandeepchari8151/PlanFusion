@@ -3722,3 +3722,27 @@ INFO:werkzeug: * Restarting with stat
 2025-03-12 19:59:16,719 - INFO -  * Debugger PIN: 108-566-975
 2025-03-12 20:47:21,724 - INFO -  * Detected change in 'e:\\project\\planfusion_project(11.03.2025) - git\\app.py', reloading
 2025-03-12 20:47:21,795 - INFO -  * Restarting with stat
+2025-03-12 20:47:22,639 - WARNING -  * Debugger is active!
+2025-03-12 20:47:22,646 - INFO -  * Debugger PIN: 108-566-975
+2025-03-12 21:11:36,163 - INFO -  * Detected change in 'e:\\project\\planfusion_project(11.03.2025) - git\\app.py', reloading
+2025-03-12 21:11:36,232 - INFO -  * Restarting with stat
+2025-03-12 21:11:37,114 - WARNING -  * Debugger is active!
+2025-03-12 21:11:37,121 - INFO -  * Debugger PIN: 108-566-975
+2025-03-12 21:11:41,890 - INFO - 127.0.0.1 - - [12/Mar/2025 21:11:41] "[32mGET / HTTP/1.1[0m" 302 -
+2025-03-12 21:11:41,930 - INFO - 127.0.0.1 - - [12/Mar/2025 21:11:41] "GET /login HTTP/1.1" 200 -
+2025-03-12 21:11:42,277 - INFO - 127.0.0.1 - - [12/Mar/2025 21:11:42] "GET /static/css/login.css HTTP/1.1" 200 -
+2025-03-12 21:11:42,298 - INFO - 127.0.0.1 - - [12/Mar/2025 21:11:42] "GET /static/images/login.jpg HTTP/1.1" 200 -
+2025-03-12 21:11:42,667 - INFO - 127.0.0.1 - - [12/Mar/2025 21:11:42] "[33mGET /favicon.ico HTTP/1.1[0m" 404 -
+2025-03-12 21:11:48,708 - INFO - 127.0.0.1 - - [12/Mar/2025 21:11:48] "[35m[1mPOST /login HTTP/1.1[0m" 500 -
+2025-03-12 21:11:48,812 - INFO - 127.0.0.1 - - [12/Mar/2025 21:11:48] "GET /login?__debugger__=yes&cmd=resource&f=style.css HTTP/1.1" 200 -
+2025-03-12 21:11:49,162 - INFO - 127.0.0.1 - - [12/Mar/2025 21:11:49] "GET /login?__debugger__=yes&cmd=resource&f=debugger.js HTTP/1.1" 200 -
+2025-03-12 21:11:49,506 - INFO - 127.0.0.1 - - [12/Mar/2025 21:11:49] "GET /login?__debugger__=yes&cmd=resource&f=console.png&s=18WSS80JwIUELLIOTqjp HTTP/1.1" 200 -
+2025-03-12 21:11:49,735 - INFO - 127.0.0.1 - - [12/Mar/2025 21:11:49] "GET /login?__debugger__=yes&cmd=resource&f=console.png HTTP/1.1" 200 -
+2025-03-12 21:12:07,745 - INFO - 127.0.0.1 - - [12/Mar/2025 21:12:07] "GET /login HTTP/1.1" 200 -
+2025-03-12 21:12:08,076 - INFO - 127.0.0.1 - - [12/Mar/2025 21:12:08] "[36mGET /static/css/login.css HTTP/1.1[0m" 304 -
+2025-03-12 21:12:16,013 - INFO - 127.0.0.1 - - [12/Mar/2025 21:12:16] "[35m[1mPOST /login HTTP/1.1[0m" 500 -
+2025-03-12 21:12:16,028 - INFO - 127.0.0.1 - - [12/Mar/2025 21:12:16] "[36mGET /login?__debugger__=yes&cmd=resource&f=style.css HTTP/1.1[0m" 304 -
+2025-03-12 21:12:16,332 - INFO - 127.0.0.1 - - [12/Mar/2025 21:12:16] "[36mGET /login?__debugger__=yes&cmd=resource&f=debugger.js HTTP/1.1[0m" 304 -
+2025-03-12 21:12:16,658 - INFO - 127.0.0.1 - - [12/Mar/2025 21:12:16] "[36mGET /login?__debugger__=yes&cmd=resource&f=console.png&s=18WSS80JwIUELLIOTqjp HTTP/1.1[0m" 304 -
+2025-03-12 21:14:40,810 - INFO -  * Detected change in 'e:\\project\\planfusion_project(11.03.2025) - git\\app.py', reloading
+2025-03-12 21:14:40,886 - INFO -  * Restarting with stat

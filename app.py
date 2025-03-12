@@ -1,6 +1,3 @@
-
-# updated one 
-
 import os
 import random
 import string
@@ -16,29 +13,31 @@ from flask_mail import Mail, Message
 from flask_mysqldb import MySQL
 from dotenv import load_dotenv
 
-# Load environment variables from .env file
-load_dotenv()
+# ✅ Load environment variables (for local development)
+if os.path.exists('.env'):
+    load_dotenv()
 
+# ✅ Initialize Flask App
 app = Flask(__name__)
 
-# 🛠 Flask-Mail Configuration (Use Environment Variables)
-app.config['MAIL_SERVER'] = 'smtp.gmail.com'
-app.config['MAIL_PORT'] = 587
-app.config['MAIL_USE_TLS'] = True
-app.config['MAIL_USE_SSL'] = False
-app.config['MAIL_USERNAME'] = os.getenv('planfusion123@gmail.com')
-app.config['MAIL_PASSWORD'] = os.getenv('iope cqou juuy cjvk')
-app.config['MAIL_DEFAULT_SENDER'] = os.getenv('planfusion123@gmail.com')
+# ✅ Flask Configuration
+app.config.update(
+    SECRET_KEY=os.getenv('SECRET_KEY', 'default_secret_key'),
+    MAIL_SERVER=os.getenv('MAIL_SERVER', 'smtp.gmail.com'),
+    MAIL_PORT=int(os.getenv('MAIL_PORT', 587)),
+    MAIL_USE_TLS=os.getenv('MAIL_USE_TLS', 'True') == 'True',
+    MAIL_USE_SSL=os.getenv('MAIL_USE_SSL', 'False') == 'True',
+    MAIL_USERNAME=os.getenv('MAIL_USERNAME'),
+    MAIL_PASSWORD=os.getenv('MAIL_PASSWORD'),
+    MAIL_DEFAULT_SENDER=os.getenv('MAIL_DEFAULT_SENDER'),
+    MYSQL_HOST=os.getenv('MYSQL_HOST', 'localhost'),
+    MYSQL_USER=os.getenv('MYSQL_USER', 'root'),
+    MYSQL_PASSWORD=os.getenv('MYSQL_PASSWORD', 'sandeep@1234'),
+    MYSQL_DB=os.getenv('MYSQL_DB', 'sandeepdb')
+)
 
+# ✅ Initialize Flask Extensions
 mail = Mail(app)
-
-# 🔒 MySQL Configuration
-app.config['MYSQL_HOST'] = os.getenv('MYSQL_HOST', 'localhost')
-app.config['MYSQL_USER'] = os.getenv('MYSQL_USER', 'root')
-app.config['MYSQL_PASSWORD'] = os.getenv('MYSQL_PASSWORD', 'sandeep@1234')
-app.config['MYSQL_DB'] = os.getenv('MYSQL_DB', 'sandeepdb')
-app.secret_key = os.getenv('SECRET_KEY', 'your_secret_key_here')
-
 mysql = MySQL(app)
 
 # 📝 Set up logging
@@ -147,36 +146,6 @@ def forgot_password():
 
     return render_template('forgot_password.html')
 
-# 🔹 Reset Password Route
-@app.route('/reset_password/<token>', methods=['GET', 'POST'])
-def reset_password(token):
-    if request.method == 'POST':
-        new_password = request.form['password']
-
-        cursor = mysql.connection.cursor()
-        cursor.execute("SELECT email FROM password_resets WHERE token = %s", (token,))
-        user = cursor.fetchone()
-
-        if user:
-            email = user[0]
-            hashed_password = bcrypt.hashpw(new_password.encode('utf-8'), bcrypt.gensalt()).decode('utf-8')
-
-            cursor.execute("UPDATE users SET password = %s WHERE email = %s", (hashed_password, email))
-            mysql.connection.commit()
-
-            cursor.execute("DELETE FROM password_resets WHERE token = %s", (token,))
-            mysql.connection.commit()
-
-            logging.info(f"Password reset successful for {email}")
-            flash("Your password has been reset successfully!", "success")
-            return redirect(url_for('login'))
-        else:
-            flash("Invalid or expired token.", "danger")
-
-        cursor.close()
-
-    return render_template('reset_password.html', token=token)
-
 # 🔹 Dashboard Route
 @app.route('/dashboard')
 def dash():
@@ -205,8 +174,7 @@ def dashboard_data():
         "overallLastWeek": 75
     })
 
-
-# todo route
+# 📝 To-Do Route
 @app.route('/todo')
 def todo():
     return render_template('todo.html')
@@ -215,7 +183,6 @@ def todo():
 def learning():
     return render_template('learning.html')
 
-# 📝 Networking & Social Growth Route
 @app.route('/networking')
 def networking():
     return render_template('networking.html')
@@ -227,9 +194,7 @@ def logout():
     flash("You have been logged out.", "success")
     return redirect(url_for('login'))
 
-
-
-# Fetch all tasks
+# 📝 Task API Routes
 @app.route('/get_tasks', methods=['GET'])
 def get_tasks():
     cursor = mysql.connection.cursor()
@@ -253,50 +218,11 @@ def update_task_status(task_id):
 
     return jsonify({"message": "Task status updated successfully"}), 200
 
-# Add a new task
-@app.route('/add_task', methods=['POST'])
-def add_task():
-    data = request.get_json()
-    task_name = data['name']
-
-    cursor = mysql.connection.cursor()
-    cursor.execute("INSERT INTO todo_list (name) VALUES (%s)", (task_name,))
-    mysql.connection.commit()
-    cursor.close()
-
-    return jsonify({"message": "Task added successfully"}), 201
-
-# Delete a task
-@app.route('/delete_task/<int:task_id>', methods=['DELETE'])
-def delete_task(task_id):
-    cursor = mysql.connection.cursor()
-    cursor.execute("DELETE FROM todo_list WHERE id = %s", (task_id,))
-    mysql.connection.commit()
-    cursor.close()
-
-    return jsonify({"message": "Task deleted successfully"}), 200
-
-# Update a task
-@app.route('/update_task', methods=['PUT'])
-def update_task():
-    data = request.get_json()
-    task_id = data['id']
-    new_name = data['name']
-
-    cursor = mysql.connection.cursor()
-    cursor.execute("UPDATE todo_list SET name = %s WHERE id = %s", (new_name, task_id))
-    mysql.connection.commit()
-    cursor.close()
-
-    return jsonify({"message": "Task updated successfully"}), 200
-
-
 # 🔹 Default Route Redirects to Login
 @app.route('/')
 def home():
     return redirect(url_for('login'))  # Redirect '/' to the login page
 
-
-
+# ✅ Run Flask App
 if __name__ == '__main__':
-    app.run(debug=True)
+    app.run(debug=True, host='0.0.0.0', port=int(os.getenv("PORT", 5000)))
