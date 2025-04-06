@@ -1,0 +1,359 @@
+<!DOCTYPE html>
+<html lang="en">
+
+<head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>User Dashboard - Plan Fusion</title>
+
+    <!-- Linking CSS and external libraries -->
+    <link rel="stylesheet" href="{{ url_for('static', filename='css/dash1.css') }}" />
+    <link rel="stylesheet" href="{{ url_for('static', filename='css/dash_profile.css') }}" />
+    <link rel="stylesheet" href="{{ url_for('static', filename='css/dash_skills.css') }}" />
+    <link rel="stylesheet" href="{{ url_for('static', filename='css/dash_tasks.css') }}" />
+    <link rel="stylesheet" href="{{ url_for('static', filename='css/dash_home.css') }}" />
+    <link href="https://cdn.jsdelivr.net/npm/remixicon@4.5.0/fonts/remixicon.css" rel="stylesheet" />
+    <script src="https://code.jquery.com/jquery-3.6.0.min.js"></script>
+    <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+</head>
+
+<body>
+    <!-- Navigation Bar -->
+    <nav>
+        <div class="nav_header">
+            <div class="nav_logo">
+                <img src="{{ url_for('static', filename='images/logo.png') }}" alt="Logo">
+                <a href="#">Plan<span>Fusion</span></a>
+            </div>
+            <div class="nav_menu_btn" id="menu-btn">
+                <span><i class="ri-menu-line"></i></span>
+            </div>
+        </div>  
+
+        <!-- Navigation Links -->
+        <ul class="nav_links" id="nav-links">
+            <li><a href="#" class="nav-item" data-target="home">Home</a></li>
+            <li><a href="#" class="nav-item" data-target="tasks">Tasks</a></li>
+            <li><a href="#" class="nav-item" data-target="skills">Skills</a></li>
+            <li><a href="#" class="nav-item" data-target="networking">Networking</a></li>
+            <li><a href="#" class="nav-item" data-target="analytics">Analytics</a></li>
+            <li><a href="#" class="nav-item" data-target="profile">Profile</a></li>
+        </ul>
+
+        <!-- Logout Button -->
+        <div class="nav_btns">
+            <button class="btn sign_in" id="logout">Log Out</button>
+        </div>
+    </nav>
+
+    <!-- Dashboard Main Container -->
+    <main class="dashboard-container">
+
+        <!-- Home Section -->
+        <section id="home" class="dashboard-section active">
+            <h2>Welcome to Plan Fusion</h2>
+            <p>Manage your tasks, skills, and networking all in one place.</p>
+
+            <div class="home-overview">
+                <div class="home-card">
+                    <h3>Profile Details</h3>
+                    <p><strong>Username:</strong> {{ username }}</p>
+                    <p><strong>Email:</strong> {{ email }}</p>
+                </div>
+                <div class="home-card">
+                    <h3>Completed Skills</h3>
+                    <p id="completedSkillsCount">0</p>
+                </div>
+                <div class="home-card">
+                    <h3>Completed Tasks</h3>
+                    <p id="completedTasksCount">0</p>
+                </div>
+                <div class="home-card">
+                    <h3>Remaining Tasks</h3>
+                    <p id="remainingTasksCount">0</p>
+                </div>
+                <div class="skills-progress">
+                    <h3>Skill Progress</h3>
+                    <p>Remaining: <span id="skillsRemainingCount">0</span></p>
+                    <p>Completed: <span id="skillsCompletedCount">0</span></p>
+                </div>
+            </div>
+        </section>
+
+        <!-- Task Management Section -->
+        <section id="tasks" class="dashboard-section">
+            <div class="todo-container">
+
+                <!-- Main Task Section -->
+                <div class="todo-main">
+                    <header class="todo-header">
+                        <h2><i class="ri-calendar-todo-line"></i>Today's Tasks</h2>
+                        <p id="currentDate">Thursday, March 27</p>
+
+                        <!-- Task Controls -->
+                        <div class="todo-controls">
+                            <button id="gridView"><i class="ri-grid-fill"></i> Grid</button>
+                            <button id="listView" class="active"><i class="ri-list-check"></i> List</button>
+                            <button id="sortTasks"><i class="ri-arrow-up-down-line"></i> Sort</button>
+                            <button id="showSuggestions"><i class="ri-lightbulb-line"></i> Suggestions</button>
+                        </div>
+                    </header>
+
+                    <!-- Task Input Field -->
+                    <div class="task-container">
+                        <div class="add-task">
+                            <span class="plus-icon">+</span>
+                            <input type="text" id="taskInput" placeholder="Add a task">
+                        </div>
+
+                        <div class="task-options">
+                            <!-- Due Date -->
+                            <div class="dropdown">
+                                <button class="dropdown-toggle" data-dropdown="dueDropdown">
+                                    <span id="dueDisplay">Due</span> <i class="ri-calendar-line"></i>
+                                </button>
+                                <div class="dropdown-menu" id="dueDropdown">
+                                    <p><strong>Due</strong></p>
+                                    <ul>
+                                        <li><i class="ri-calendar-event-line"></i> Today</li>
+                                        <li><i class="ri-calendar-event-line"></i> Tomorrow</li>
+                                        <li><i class="ri-calendar-event-line"></i> Next Week</li>
+                                        <li><i class="ri-calendar-2-line"></i> Pick a date</li>
+                                    </ul>
+                                </div>
+                            </div>
+
+                            <!-- Reminder -->
+                            <div class="dropdown">
+                                <button class="dropdown-toggle" data-dropdown="reminderDropdown">
+                                    <span id="reminderDisplay">Reminder</span> <i class="ri-notification-line"></i>
+                                </button>
+                                <div class="dropdown-menu" id="reminderDropdown">
+                                    <p><strong>Reminder</strong></p>
+                                    <ul>
+                                        <li><i class="ri-time-line"></i> Later today</li>
+                                        <li><i class="ri-time-line"></i> Tomorrow</li>
+                                        <li><i class="ri-time-line"></i> Next week</li>
+                                        <li><i class="ri-calendar-check-line"></i> Pick a date</li>
+                                    </ul>
+                                </div>
+                            </div>
+
+                            <!-- Repeat -->
+                            <div class="dropdown">
+                                <button class="dropdown-toggle" data-dropdown="repeatDropdown">
+                                    <span id="repeatDisplay">Repeat</span> <i class="ri-loop-right-line"></i>
+                                </button>
+                                <div class="dropdown-menu" id="repeatDropdown">
+                                    <p><strong>Repeat</strong></p>
+                                    <ul>
+                                        <li><i class="ri-repeat-line"></i> Daily</li>
+                                        <li><i class="ri-calendar-week-fill"></i> Weekly</li>
+                                        <li><i class="ri-calendar-month-line"></i> Monthly</li>
+                                        <li><i class="ri-calendar-year-fill"></i> Yearly</li>
+                                        <li><i class="ri-settings-2-line"></i> Custom</li>
+                                    </ul>
+                                </div>
+                            </div>
+                            <button id="addTaskBtn">Add</button>
+                        </div>
+                    </div>
+                    <!-- Task List Display -->
+                    <ul id="taskList" class="task-list"></ul>
+                </div>
+            </div>
+        </section>
+        <!-- skills section-->
+        <section id="skills" class="dashboard-section">
+            <div class="skills-header">
+                <div class="header-left">
+                    <i class="ri-briefcase-line"></i>
+                    <span>Your Skills</span>
+                </div>
+                <p class="currentDate"></p>
+                <div class="header-right">
+                    <button id="viewToggle" class="view-toggle">
+                        <i class="ri-grid-fill"></i> Grid View
+                    </button>
+                    <button id="sortToggle" class="sort-toggle">
+                        <i class="ri-sort-asc"></i> Sort
+                    </button>
+                    <button id="showSuggestions" class="suggestions-toggle">
+                        <i class="ri-bulb-line"></i> Suggestions
+                    </button>
+                </div>
+            </div>
+
+            <div class="skills-input-container">
+                <div class="skills-input">
+                    <input type="text" id="newSkill" placeholder="Add a skill" />
+                </div>
+                <button class="add-button" id="addSkill">Add</button>
+            </div>
+
+            <div class="skills-content">
+                <ul id="skillList" class="skill-list list-view"></ul>
+                <div id="calendarContainer" class="calendar-container"></div>
+                <div id="suggestionsContainer" class="suggestions-container"></div>
+            </div>
+        </section>
+
+        <!-- Networking & Social Growth Section -->
+        <section id="networking" class="dashboard-section">
+            <h2>Networking & Social Growth</h2>
+            <div class="network-input">
+                <input type="text" id="newNetwork" placeholder="Add a networking goal" />
+                <button id="addNetwork">Add</button>
+            </div>
+            <ul id="networkList"></ul>
+        </section>
+
+        <!-- Analytics Section -->
+        <section id="analytics" class="dashboard-section">
+            <h2>Analytics</h2>
+            <canvas id="barChart"></canvas>
+            <canvas id="pieChart"></canvas>
+        </section>
+<!-- Profile Section -->
+<section id="profile" class="dashboard-section">
+  <div class="save-profile-wrapper top-left" id="saveProfileWrapper" style="display: none;">
+    <button id="saveProfileChanges"><i class="ri-save-line"></i> Save Changes</button>
+  </div>
+
+  <div class="card-wrapper">
+    <!-- Block 1: Profile Summary -->
+    <div class="card profile-summary-card block-1">
+      <div class="card-header">
+        <div class="card-cover cover-image"></div>
+<!-- Clickable Avatar for Inline Edit -->
+<div class="avatar-edit-wrapper" onclick="document.getElementById('avatarUpload').click()" style="position: relative; display: inline-block; cursor: pointer;">
+    <img id="profileAvatar"
+         class="card-avatar"
+         src="{{ profile.avatar_url if profile and profile.avatar_url else url_for('static', filename='images/profile.jpg') }}"
+         alt="avatar" />
+    <input type="file" id="avatarUpload" name="profile_image" accept="image/*" style="display: none;">
+    <span class="avatar-edit-icon" style="position: absolute; bottom: 0; right: 0; background: #fff; border-radius: 50%; padding: 4px;">
+      <i class="ri-camera-line"></i>
+    </span>
+  </div>
+  
+        <h1 class="card-fullname editable" contenteditable="true" data-placeholder="Enter your name...">
+          {{ profile.full_name if profile and profile.full_name else '' }}
+        </h1>
+        <h2 class="card-jobtitle editable" contenteditable="true" data-placeholder="Enter your title...">
+          {{ profile.job_title if profile and profile.job_title else '' }}
+        </h2>
+      </div>
+
+      <div class="card-main">
+        <div class="card-content">
+          <div class="card-subtitle">BIO</div>
+          <p class="card-desc editable" contenteditable="true" data-placeholder="Tell us something about yourself...">
+            {{ profile.bio if profile and profile.bio else '' }}
+          </p>
+        </div>
+
+        <div class="card-social">
+          {% if profile and profile.facebook_url %}<a href="{{ profile.facebook_url }}"><i class="ri-facebook-fill"></i></a>{% endif %}
+          {% if profile and profile.twitter_url %}<a href="{{ profile.twitter_url }}"><i class="ri-twitter-fill"></i></a>{% endif %}
+          {% if profile and profile.instagram_url %}<a href="{{ profile.instagram_url }}"><i class="ri-instagram-fill"></i></a>{% endif %}
+          {% if profile and profile.linkedin_url %}<a href="{{ profile.linkedin_url }}"><i class="ri-linkedin-box-fill"></i></a>{% endif %}
+        </div>
+      </div>
+    </div>
+
+    <!-- Block 2: Tabbed Content -->
+    <div class="card tabbed-details-card block-2">
+      <div class="card-main">
+
+        <!-- Tab Sections -->
+        <div class="card-section is-active" id="about">
+          <div class="card-content">
+            <div class="card-subtitle">ABOUT</div>
+            <p class="card-desc editable" contenteditable="true" data-placeholder="Add a short about summary here.">
+              {{ profile.bio if profile and profile.bio else '' }}
+            </p>
+          </div>
+        </div>
+
+        <div class="card-section" id="experience">
+          <div class="card-content">
+            <div class="card-subtitle">PERFORMANCE</div>
+            <div class="card-timeline">
+              <div class="card-item">
+                <div class="card-item-title">Total Completed Tasks</div>
+                <div class="card-item-desc editable" contenteditable="true" data-placeholder="0">
+                  {{ profile.completed_tasks if profile and profile.completed_tasks is not none else 0 }}
+                </div>
+              </div>
+              <div class="card-item">
+                <div class="card-item-title">Total Developed Skills</div>
+                <div class="card-item-desc editable" contenteditable="true" data-placeholder="0">
+                  {{ profile.completed_skills if profile and profile.completed_skills is not none else 0 }}
+                </div>
+              </div>
+            </div>
+          </div>
+        </div>
+
+        <div class="card-section" id="contact">
+          <div class="card-content">
+            <div class="card-subtitle">CONTACT</div>
+            <div class="card-contact-wrapper">
+              <div class="card-contact editable" contenteditable="true" data-placeholder="Address">
+                <i class="ri-map-pin-line"></i>
+                {{ profile.address if profile and profile.address else '' }}
+              </div>
+              <div class="card-contact editable" contenteditable="true" data-placeholder="Phone">
+                <i class="ri-phone-fill"></i>
+                {{ profile.phone if profile and profile.phone else '' }}
+              </div>
+              <div class="card-contact editable" contenteditable="true" data-placeholder="Email">
+                <i class="ri-mail-line"></i>
+                {{ profile.email if profile and profile.email else '' }}
+              </div>
+            </div>
+          </div>
+        </div>
+
+        <!-- Tab Buttons -->
+        <div class="card-buttons">
+          <button data-section="#about" class="is-active">ABOUT</button>
+          <button data-section="#experience">PERFORMANCE</button>
+          <button data-section="#contact">CONTACT</button>
+        </div>
+      </div>
+    </div>
+  </div>
+  <!-- Hidden Form -->
+  <form id="profileForm" method="POST" enctype="multipart/form-data" style="display: none;">
+    <input type="text" name="full_name" value="{{ profile.full_name if profile and profile.full_name else '' }}">
+    <input type="text" name="job_title" value="{{ profile.job_title if profile and profile.job_title else '' }}">
+    <input type="text" name="bio" value="{{ profile.bio if profile and profile.bio else '' }}">
+    <input type="text" name="address" value="{{ profile.address if profile and profile.address else '' }}">
+    <input type="text" name="phone" value="{{ profile.phone if profile and profile.phone else '' }}">
+    <input type="text" name="email" value="{{ profile.email if profile and profile.email else '' }}">
+    <input type="number" name="completed_tasks" value="{{ profile.completed_tasks if profile and profile.completed_tasks is not none else 0 }}">
+    <input type="number" name="completed_skills" value="{{ profile.completed_skills if profile and profile.completed_skills is not none else 0 }}">
+    <button type="submit">Save</button>
+  </form>
+  
+  
+</section>
+
+  
+      
+      
+        
+    </main>
+
+    <!-- Linking JavaScript -->
+    <script src="{{ url_for('static', filename='js/dash_home.js') }}"></script>
+    <script src="{{ url_for('static', filename='js/dash_tasks.js') }}"></script>
+    <script src="{{ url_for('static', filename='js/dash_skills.js') }}"></script>
+    <script src="{{ url_for('static', filename='js/dash_network.js') }}"></script>
+    <script src="{{ url_for('static', filename='js/dash_Profile.js') }}"></script>
+
+</body>
+
+</html>
