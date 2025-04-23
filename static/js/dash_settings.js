@@ -359,42 +359,157 @@ function initNotifications() {
     const notificationLink = document.querySelector('.notification-link');
     const notificationDropdown = document.querySelector('.notification-dropdown');
     const clearNotificationsBtn = document.querySelector('.clear-notifications');
-    const notificationItems = document.querySelectorAll('.notification-item');
+    const pendingList = document.querySelector('.pending-list');
+    const completedList = document.querySelector('.completed-list');
 
-    // Toggle notification dropdown
-    notificationLink.addEventListener('click', (e) => {
-        e.preventDefault();
-        e.stopPropagation();
-        notificationDropdown.classList.toggle('show');
-    });
+    // Only initialize if notification elements exist
+    if (notificationLink && notificationDropdown) {
+        // Toggle notification dropdown
+        notificationLink.addEventListener('click', (e) => {
+            e.preventDefault();
+            e.stopPropagation();
+            notificationDropdown.classList.toggle('show');
+            // Refresh notifications when dropdown is opened
+            if (notificationDropdown.classList.contains('show')) {
+                fetchAndUpdateNotifications();
+            }
+        });
 
-    // Close dropdown when clicking outside
-    document.addEventListener('click', (e) => {
-        if (!notificationLink.contains(e.target) && !notificationDropdown.contains(e.target)) {
-            notificationDropdown.classList.remove('show');
-        }
-    });
+        // Close dropdown when clicking outside
+        document.addEventListener('click', (e) => {
+            if (!notificationLink.contains(e.target) && !notificationDropdown.contains(e.target)) {
+                notificationDropdown.classList.remove('show');
+            }
+        });
 
-    // Clear all notifications
-    if (clearNotificationsBtn) {
-        clearNotificationsBtn.addEventListener('click', () => {
-            notificationItems.forEach(item => {
-                item.remove();
+        // Clear all notifications if button exists
+        if (clearNotificationsBtn) {
+            clearNotificationsBtn.addEventListener('click', () => {
+                if (pendingList) pendingList.innerHTML = '';
+                if (completedList) completedList.innerHTML = '';
+                updateNotificationBadge(0);
+                notificationDropdown.classList.remove('show');
             });
-            updateNotificationBadge(0);
-        });
-    }
+        }
 
-    // Handle individual notification clicks
-    notificationItems.forEach(item => {
-        item.addEventListener('click', () => {
-            item.classList.add('read');
-            updateNotificationBadge();
-        });
-    });
+        // Initial fetch of notifications
+        fetchAndUpdateNotifications();
+        
+        // Set up periodic refresh (every 5 minutes)
+        setInterval(fetchAndUpdateNotifications, 5 * 60 * 1000);
+    }
 }
 
-// Update notification badge count
+async function fetchAndUpdateNotifications() {
+    try {
+        const response = await fetch('/dashboard_data');
+        const data = await response.json();
+        
+        // Clear existing notifications
+        const pendingList = document.querySelector('.pending-list');
+        const completedList = document.querySelector('.completed-list');
+        if (pendingList) pendingList.innerHTML = '';
+        if (completedList) completedList.innerHTML = '';
+
+        // Add task notifications
+        if (data.task_data) {
+            // Pending tasks
+            if (data.task_data.pending > 0) {
+                addNotification(
+                    `You have ${data.task_data.pending} pending task${data.task_data.pending > 1 ? 's' : ''}`,
+                    'pending'
+                );
+            }
+
+            // Overdue tasks
+            if (data.task_data.overdue > 0) {
+                addNotification(
+                    `You have ${data.task_data.overdue} overdue task${data.task_data.overdue > 1 ? 's' : ''}`,
+                    'pending'
+                );
+            }
+
+            // Completed tasks
+            if (data.task_data.completed > 0) {
+                addNotification(
+                    `You've completed ${data.task_data.completed} task${data.task_data.completed > 1 ? 's' : ''} (${data.task_data.completion_percentage}%)`,
+                    'completed'
+                );
+            }
+        }
+
+        // Add skill notifications
+        if (data.skill_data) {
+            // Skills in progress
+            if (data.skill_data.in_progress > 0) {
+                addNotification(
+                    `You have ${data.skill_data.in_progress} skill${data.skill_data.in_progress > 1 ? 's' : ''} in progress`,
+                    'pending'
+                );
+            }
+
+            // Completed skills
+            if (data.skill_data.completed > 0) {
+                addNotification(
+                    `You've completed ${data.skill_data.completed} skill${data.skill_data.completed > 1 ? 's' : ''} (${data.skill_data.completion_percentage}%)`,
+                    'completed'
+                );
+            }
+        }
+
+        // Add networking notifications
+        if (data.network_data) {
+            // Goals progress
+            if (data.network_data.total_goals > 0) {
+                addNotification(
+                    `You've completed ${data.network_data.completed_goals} of ${data.network_data.total_goals} goals (${data.network_data.goal_achievement_percentage}%)`,
+                    data.network_data.completed_goals === data.network_data.total_goals ? 'completed' : 'pending'
+                );
+            }
+
+            // Upcoming meetings
+            if (data.network_data.upcoming_meetings && data.network_data.upcoming_meetings.length > 0) {
+                const nextMeeting = data.network_data.upcoming_meetings[0];
+                if (nextMeeting && nextMeeting.contact_name) {
+                    addNotification(
+                        `Next meeting: ${nextMeeting.contact_name}${nextMeeting.next_meeting ? ` on ${new Date(nextMeeting.next_meeting).toLocaleDateString()}` : ''}`,
+                        'pending'
+                    );
+                }
+            }
+        }
+
+        // If no notifications, show a message
+        if (pendingList && pendingList.children.length === 0 && completedList && completedList.children.length === 0) {
+            addNotification('No recent activities to show', 'completed');
+        }
+
+        // Update badge count
+        updateNotificationBadge();
+    } catch (error) {
+        console.error('Error fetching notifications:', error);
+        showToast('Failed to load notifications', 'error');
+    }
+}
+
+function addNotification(message, type = 'pending') {
+    const notificationList = type === 'pending' 
+        ? document.querySelector('.pending-list')
+        : document.querySelector('.completed-list');
+    
+    if (notificationList) {
+        const notificationItem = document.createElement('div');
+        notificationItem.className = 'notification-item';
+        notificationItem.innerHTML = `
+            <div class="notification-content">
+                <p>${message}</p>
+            </div>
+        `;
+        
+        notificationList.appendChild(notificationItem);
+    }
+}
+
 function updateNotificationBadge(count) {
     const badge = document.querySelector('.notification-link .badge');
     if (badge) {
@@ -402,10 +517,9 @@ function updateNotificationBadge(count) {
             badge.textContent = count;
             badge.style.display = count > 0 ? 'flex' : 'none';
         } else {
-            // Count unread notifications
-            const unreadCount = document.querySelectorAll('.notification-item:not(.read)').length;
-            badge.textContent = unreadCount;
-            badge.style.display = unreadCount > 0 ? 'flex' : 'none';
+            const pendingCount = document.querySelectorAll('.pending-list .notification-item').length;
+            badge.textContent = pendingCount;
+            badge.style.display = pendingCount > 0 ? 'flex' : 'none';
         }
     }
 }

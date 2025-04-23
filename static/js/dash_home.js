@@ -120,31 +120,13 @@ document.addEventListener('DOMContentLoaded', function() {
         }
     });
 
-    // --- Profile Dropdown ---
-    const profileToggleElementForDropdown = document.getElementById('profile-toggle');
-    const profileDropdownMenu = document.getElementById('profile-dropdown-menu');
-
-    if (profileToggleElementForDropdown && profileDropdownMenu) {
-        profileToggleElementForDropdown.addEventListener('click', (event) => {
-            profileDropdownMenu.classList.toggle('show');
-        });
-
-        document.addEventListener('click', (event) => {
-            if (!profileToggleElementForDropdown.contains(event.target) && !profileDropdownMenu.contains(event.target)) {
-                profileDropdownMenu.classList.remove('show');
-            }
-        });
-    }
-
     // --- Progress Circles (Simulated) ---
-    const progressElements = document.querySelectorAll('.progress');
-
-    progressElements.forEach(progress => {
-        const value = parseInt(progress.getAttribute('data-value'));
-        const radius = 40;
-        const circumference = 2 * Math.PI * radius;
-
-        progress.style.background = `conic-gradient(#4CAF50 ${value}%, #ddd ${value}%)`;
+    const progressCircles = document.querySelectorAll('.progress-circle');
+    progressCircles.forEach(circle => {
+        const progress = circle.getAttribute('data-progress');
+        const circumference = 2 * Math.PI * 40; // radius = 40
+        const offset = circumference - (progress / 100) * circumference;
+        circle.style.strokeDashoffset = offset;
     });
 
     // --- Recent Interactions Filter (Basic Simulation) ---
@@ -175,71 +157,20 @@ document.addEventListener('DOMContentLoaded', function() {
         });
     }
 
-    // --- Profile Picture Update ---
-    const profileToggleAvatar = document.getElementById('profile-toggle-avatar');
-    const cardAvatar = document.getElementById('profileAvatar');
-    const fileInput = document.getElementById('avatarUpload');
+    // --- Profile Dropdown ---
+    const profileToggleElementForDropdown = document.getElementById('profile-toggle');
+    const profileDropdownMenu = document.getElementById('profile-dropdown-menu');
 
-    if (fileInput && profileToggleAvatar && cardAvatar) {
-        fileInput.addEventListener('change', (e) => {
-            const file = e.target.files[0];
-            if (file) {
-                // Validate file type
-                const allowedTypes = ['image/jpeg', 'image/png', 'image/gif'];
-                if (!allowedTypes.includes(file.type)) {
-                    showAlert('Please select a valid image file (JPEG, PNG, or GIF)', 'danger');
-                    return;
-                }
+    if (profileToggleElementForDropdown && profileDropdownMenu) {
+        profileToggleElementForDropdown.addEventListener('click', (event) => {
+            profileDropdownMenu.classList.toggle('show');
+        });
 
-                // Validate file size (max 5MB)
-                if (file.size > 5 * 1024 * 1024) {
-                    showAlert('File size should be less than 5MB', 'danger');
-                    return;
-                }
-
-                const reader = new FileReader();
-                reader.onload = (event) => {
-                    // Update both avatars immediately for better UX
-                    profileToggleAvatar.src = event.target.result;
-                    cardAvatar.src = event.target.result;
-
-                    const formData = new FormData();
-                    formData.append('avatar', file);
-
-                    fetch('/upload_avatar', {
-                        method: 'POST',
-                        body: formData,
-                    })
-                    .then(response => {
-                        if (!response.ok) {
-                            throw new Error(`HTTP error! status: ${response.status}`);
-                        }
-                        return response.json();
-                    })
-                    .then(data => {
-                        if (data.success && data.avatar_url) {
-                            const timestamp = Date.now();
-                            const newAvatarUrl = `${data.avatar_url}?cache_buster=${timestamp}`;
-                            profileToggleAvatar.src = newAvatarUrl;
-                            cardAvatar.src = newAvatarUrl;
-                            showAlert('Profile picture updated successfully!', 'success');
-                        } else {
-                            throw new Error(data.error || 'Failed to update avatar');
-                        }
-                    })
-                    .catch(error => {
-                        console.error('Error uploading avatar:', error);
-                        showAlert('Error uploading profile picture. Please try again.', 'danger');
-                        // Revert to original avatar if upload fails
-                        profileToggleAvatar.src = profileToggleAvatar.dataset.originalSrc || '/static/images/profile.jpg';
-                        cardAvatar.src = cardAvatar.dataset.originalSrc || '/static/images/profile.jpg';
-                    });
-                };
-                reader.readAsDataURL(file);
+        document.addEventListener('click', (event) => {
+            if (!profileToggleElementForDropdown.contains(event.target) && !profileDropdownMenu.contains(event.target)) {
+                profileDropdownMenu.classList.remove('show');
             }
         });
-    } else {
-        console.warn("File input or avatar images not found for profile update.");
     }
 });
 
@@ -251,7 +182,6 @@ async function fetchDashboardData() {
             throw new Error(`HTTP error! status: ${response.status}`);
         }
         const data = await response.json();
-        console.log('Fetched dashboard data:', data);
         
         if (!data || !data.skill_data) {
             throw new Error('Invalid data structure received from server');
@@ -273,8 +203,6 @@ async function fetchDashboardData() {
 // Update all charts with new data
 function updateCharts(data) {
     try {
-        console.log('Updating charts with data:', data); // Debug log
-
         // First destroy all existing charts and clear canvases
         chartManager.destroyAll();
         chartManager.clearAllCanvases();
@@ -305,15 +233,6 @@ function updateCharts(data) {
         completedData[currentMonthIndex] = data.task_data.completed || 0;
         pendingData[currentMonthIndex] = data.task_data.pending || 0;
         overdueData[currentMonthIndex] = data.task_data.overdue || 0;
-
-        // Debug log
-        console.log('Task data for chart:', {
-            months,
-            completedData,
-            pendingData,
-            overdueData,
-            rawTaskData: data.task_data
-        });
 
         chartManager.charts.taskProgress = new Chart(taskProgressCanvas, {
             type: 'line',
@@ -401,7 +320,6 @@ function updateCharts(data) {
         }
 
         const skillData = data.skill_data;
-        console.log('Raw skill data:', skillData);
         
         if (!skillData) {
             console.error('Skill data is missing');
@@ -410,11 +328,7 @@ function updateCharts(data) {
 
         const completed = parseInt(skillData.completed) || 0;
         const inProgress = parseInt(skillData.in_progress) || 0;
-        
-        console.log('Parsed skill counts:', { completed, inProgress });
-        
         const totalSkills = completed + inProgress;
-        console.log('Total skills:', totalSkills);
 
         try {
             if (chartManager.charts.skillDev) {
@@ -607,7 +521,7 @@ function updateNotifications(data) {
     if (!notificationsContainer) return;
 
     // Clear existing notifications
-    notificationsContainer.innerHTML = '';
+        notificationsContainer.innerHTML = '';
 
     // Add task notifications
     if (data.task_data.pending_tasks_list && data.task_data.pending_tasks_list.length > 0) {

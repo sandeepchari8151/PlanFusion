@@ -3,15 +3,10 @@
 
 <head>
   <meta charset="UTF-8" />
-  <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
   <title>User Dashboard - Plan Fusion</title>
 
-  <!-- Preload critical resources -->
-  <link rel="preload" href="{{ url_for('static', filename='css/dash1.css') }}" as="style">
-  <link rel="preload" href="https://fonts.googleapis.com/css2?family=Poppins:wght@400;500;600&display=swap" as="style">
-  <link rel="preload" href="https://unpkg.com/boxicons@2.1.4/css/boxicons.min.css" as="style">
-  
-  <!-- Load CSS -->
+  <!-- Linking CSS and external libraries -->
   <link rel="stylesheet" href="{{ url_for('static', filename='css/dash1.css') }}" />
   <link rel="stylesheet" href="{{ url_for('static', filename='css/dash_profile.css') }}" />
   <link rel="stylesheet" href="{{ url_for('static', filename='css/dash_skills.css') }}" />
@@ -23,114 +18,8 @@
   <link href="https://cdn.jsdelivr.net/npm/remixicon@4.5.0/fonts/remixicon.css" rel="stylesheet" />
   <link href="https://cdn.jsdelivr.net/npm/select2@4.1.0-rc.0/dist/css/select2.min.css" rel="stylesheet" />
   <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/flatpickr/dist/flatpickr.min.css">
-  
-  <!-- Mobile-specific styles -->
-  <style>
-    /* Mobile Navigation */
-    @media (max-width: 768px) {
-      .nav_header {
-        padding: 0.5rem;
-      }
-      
-      .nav_logo a {
-        font-size: 1.2rem;
-      }
-      
-      .nav_links {
-        position: fixed;
-        top: 60px;
-        left: -100%;
-        width: 80%;
-        height: calc(100vh - 60px);
-        background: var(--white);
-        flex-direction: column;
-        padding: 1rem;
-        transition: 0.3s;
-        z-index: 1000;
-      }
-      
-      .nav_links.active {
-        left: 0;
-      }
-      
-      .nav_links a {
-        width: 100%;
-        padding: 1rem;
-        border-radius: 5px;
-      }
-      
-      .nav_btns {
-        gap: 0.5rem;
-      }
-      
-      .search-box,
-      .notification-wrapper {
-        display: none;
-      }
-    }
-    
-    /* Mobile Dashboard Content */
-    @media (max-width: 768px) {
-      .dashboard-container {
-        padding-top: 60px;
-      }
-      
-      .info-data {
-        grid-template-columns: 1fr;
-        gap: 1rem;
-        padding: 1rem;
-      }
-      
-      .card {
-        padding: 1rem;
-      }
-      
-      .data {
-        flex-direction: column;
-        padding: 1rem;
-      }
-      
-      .content-data {
-        width: 100%;
-        margin-bottom: 1rem;
-      }
-      
-      .task-stats,
-      .skill-stats,
-      .network-stats {
-        grid-template-columns: 1fr;
-        gap: 0.5rem;
-      }
-      
-      .stat-item {
-        padding: 0.5rem;
-      }
-      
-      .chart {
-        height: 200px;
-      }
-    }
-    
-    /* Touch-friendly elements */
-    @media (max-width: 768px) {
-      .nav_links a,
-      .nav_btns .btn,
-      .stat-item,
-      .card {
-        min-height: 44px;
-        display: flex;
-        align-items: center;
-        justify-content: center;
-      }
-      
-      input,
-      button,
-      select {
-        min-height: 44px;
-        font-size: 16px;
-      }
-    }
-  </style>
+  <script src="https://code.jquery.com/jquery-3.6.0.min.js"></script>
+  <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
 </head>
 
 <body>
@@ -146,7 +35,8 @@
     </div>
 
     <ul class="nav_links" id="nav-links">
-      <li><a href="#" class="nav-item active" data-target="home"><i class='bx bxs-dashboard icon'></i> Dashboard</a></li>
+      <li><a href="#" class="nav-item active" data-target="home"><i class='bx bxs-dashboard icon'></i> Dashboard</a>
+      </li>
       <li><a href="#" class="nav-item" data-target="tasks"><i class='bx bx-list-check icon'></i> Tasks</a></li>
       <li><a href="#" class="nav-item" data-target="skills"><i class='bx bx-briefcase icon'></i> Skills</a></li>
       <li><a href="#" class="nav-item" data-target="networking"><i class='bx bx-group icon'></i> Networking</a></li>
@@ -155,18 +45,41 @@
     <div class="nav_btns">
       <div class="search-box">
         <button class="btn-search"><i class="ri-search-line"></i></button>
-        <input type="text" class="input-search" placeholder="Type to Search..." fdprocessedid="i95gi5">
+        <input type="text" class="input-search" placeholder="Type to Search..." fdprocessedid="i95gi5" style="width: 40px;padding: 10px;">
       </div>
       <div class="notification-wrapper">
         <a href="#" class="nav-link notification-link">
           <i class="ri-notification-3-line"></i>
           <span id="notificationCount" class="badge">0</span>
+          <div id="notificationDropdown" class="notification-dropdown">
+            <div class="notification-header">
+              <h4>Notifications</h4>
+              <button class="clear-notifications">Clear All</button>
+            </div>
+            <div class="notification-sections">
+              <div class="notification-section pending-section">
+                <h4>Pending Items</h4>
+                <div class="notification-list pending-list">
+                  <!-- Pending notifications will be added here -->
+                </div>
+              </div>
+              <div class="notification-section completed-section">
+                <h4>Completed Items</h4>
+                <div class="notification-list completed-list">
+                  <!-- Completed notifications will be added here -->
+                </div>
+              </div>
+            </div>
+          </div>
         </a>
       </div>
       <span class="divider"></span>
       <div class="profile-dropdown">
         <div class="profile-toggle" id="profile-toggle">
-          <img id="profile-toggle-avatar" src="{{ profile.avatar_url if profile and profile.avatar_url else url_for('static', filename='images/profile.jpg') }}{% if profile and profile.avatar_url %}?cache_buster={{ random_string(8) }}{% endif %}" alt="User Avatar">
+          <img
+            id="profile-toggle-avatar"
+            src="{{ profile.avatar_url if profile and profile.avatar_url else url_for('static', filename='images/profile.jpg') }}{% if profile and profile.avatar_url %}?cache_buster={{ random_string(8) }}{% endif %}"
+            alt="User Avatar">
         </div>
         <div class="profile-dropdown-menu" id="profile-dropdown-menu">
           <ul>
@@ -174,6 +87,7 @@
             <li><a href="#" id="settingsModalBtn"><i class='bx bxs-cog icon'></i> Settings</a></li>
             <li><a href="#" id="logout"><i class='bx bxs-log-out-circle icon'></i> Logout</a></li>
           </ul>
+          <input type="file" id="avatarUpload" accept="image/*" style="display: none;">
         </div>
       </div>
     </div>
@@ -690,6 +604,9 @@
     <!-- Profile Section -->
     <section id="profile" class="dashboard-section">
       <div class="card-wrapper">
+        <!-- Edit Profile Button -->
+        <button id="editProfileBtn" class="edit-profile-btn"><i class='bx bxs-edit'></i> Edit Profile</button>
+        
         <!-- Block 1: Profile Summary -->
         <div class="card profile-summary-card block-1" style="height: 489px;">
           <div class="card-header">
@@ -697,13 +614,11 @@
             <!-- Avatar Display -->
             <div class="avatar-wrapper">
               <div class="avatar-edit-wrapper">
-              <img id="profileAvatar" class="card-avatar" src="{{ profile.avatar_url if profile and profile.avatar_url else url_for('static', filename='images/profile.jpg') }}{% if profile and profile.avatar_url %}?cache_buster={{ random_string(8) }}{% endif %}" alt="avatar" />
-                <input type="file" id="avatarUpload" accept="image/*" style="display: none;">
+                <img id="profileAvatar" class="card-avatar" src="{{ profile.avatar_url if profile and profile.avatar_url else url_for('static', filename='images/profile.jpg') }}{% if profile and profile.avatar_url %}?cache_buster={{ random_string(8) }}{% endif %}" alt="avatar" />
               </div>
             </div>
             <h3 class="card-fullname">{{ profile.full_name if profile and profile.full_name else 'Your Name' }}</h3>
             <p class="card-jobtitle">{{ profile.job_title if profile and profile.job_title else 'Your Job Title' }}</p>
-            <button id="editProfileBtn" class="edit-profile-btn"><i class='bx bxs-edit'></i> Edit Profile</button>
           </div>
 
           <div class="card-main">
@@ -801,7 +716,7 @@
       <!-- Edit Profile Modal -->
       <div id="editProfileModal" class="modal" style="display: none;">
         <div class="modal-content">
-          <span class="close-button">&times;</span>
+          <button class="close-button" aria-label="Close">&times;</button>
           <h2>Edit Profile</h2>
           <form id="editProfileForm">
             <div class="form-group">
@@ -845,11 +760,17 @@
               <input type="url" id="editFacebook" name="facebook_url" value="{{ profile.facebook_url if profile and profile.facebook_url else '' }}">
             </div>
             <div class="form-group">
-              <label for="editAvatar">Profile Picture: You can change the avatar by clicking on it in the profile</label>
-              <input type="file" id="editAvatar" name="avatar" accept="image/*">
+              <label for="editAvatar">Profile Picture:</label>
+              <div class="avatar-upload-section">
+                <img id="editAvatarPreview" class="avatar-preview" src="{{ profile.avatar_url if profile and profile.avatar_url else url_for('static', filename='images/profile.jpg') }}{% if profile and profile.avatar_url %}?cache_buster={{ random_string(8) }}{% endif %}" alt="avatar preview">
+                <input type="file" id="editAvatar" name="avatar" accept="image/*">
+                <p class="avatar-upload-hint">Click to upload a new profile picture</p>
+              </div>
             </div>
-            <button type="submit">Save Changes</button>
-            <button type="button" class="cancel-button">Cancel</button>
+            <div class="modal-buttons">
+              <button type="submit">Save Changes</button>
+              <button type="button" class="cancel-button">Cancel</button>
+            </div>
           </form>
         </div>
       </div>
@@ -965,46 +886,18 @@
 
   </main>
 
-  <!-- Load scripts -->
-  <script src="https://code.jquery.com/jquery-3.6.0.min.js"></script>
-  <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
-  <script src="https://cdn.jsdelivr.net/npm/flatpickr"></script>
-  <script src="https://cdn.jsdelivr.net/npm/select2@4.1.0-rc.0/dist/js/select2.min.js"></script>
-  
-  <!-- Mobile navigation script -->
-  <script>
-    document.addEventListener('DOMContentLoaded', function() {
-      const menuBtn = document.getElementById('menu-btn');
-      const navLinks = document.getElementById('nav-links');
-      
-      menuBtn.addEventListener('click', function() {
-        navLinks.classList.toggle('active');
-      });
-      
-      // Close menu when clicking outside
-      document.addEventListener('click', function(e) {
-        if (!navLinks.contains(e.target) && !menuBtn.contains(e.target)) {
-          navLinks.classList.remove('active');
-        }
-      });
-      
-      // Handle window resize
-      window.addEventListener('resize', function() {
-        if (window.innerWidth > 768) {
-          navLinks.classList.remove('active');
-        }
-      });
-    });
-  </script>
-  
-  <!-- Existing scripts -->
+  <!-- Linking JavaScript -->
   <script src="{{ url_for('static', filename='js/nav.js') }}"></script>
   <script src="{{ url_for('static', filename='js/dash_home.js') }}"></script>
   <script src="{{ url_for('static', filename='js/dash_tasks.js') }}"></script>
   <script src="{{ url_for('static', filename='js/dash_skills.js') }}"></script>
   <script src="{{ url_for('static', filename='js/dash_network.js') }}"></script>
   <script src="{{ url_for('static', filename='js/dash_Profile.js') }}"></script>
+  <script src="https://cdn.jsdelivr.net/npm/flatpickr"></script>
+  <script src="https://cdn.jsdelivr.net/npm/select2@4.1.0-rc.0/dist/js/select2.min.js"></script>
+  <script src="https://cdn.jsdelivr.net/npm/chart.js@3.7.0/dist/chart.min.js"></script>
   <script src="{{ url_for('static', filename='js/dash_settings.js') }}"></script>
+
 </body>
 
 </html>

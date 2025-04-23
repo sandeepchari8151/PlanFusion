@@ -646,14 +646,45 @@ def profile():
         app.logger.info(f"Profile data received in /profile: {data}")
 
         try:
+            # Handle avatar upload if present
+            if 'avatar' in request.files:
+                file = request.files['avatar']
+                if file and file.filename != '' and allowed_file(file.filename):
+                    # Ensure upload directory exists
+                    upload_dir = app.config['UPLOAD_FOLDER']
+                    if not os.path.exists(upload_dir):
+                        os.makedirs(upload_dir)
+                    
+                    # Generate unique filename
+                    filename = secure_filename(file.filename)
+                    unique_filename = f"{email}_{int(datetime.now().timestamp())}_{filename}"
+                    filepath = os.path.join(upload_dir, unique_filename)
+                    
+                    # Save file
+                    file.save(filepath)
+                    app.logger.info(f"Avatar file successfully saved to: {filepath}")
+                    
+                    # Generate URL
+                    avatar_url = url_for('static', filename=f'uploads/{unique_filename}', _external=True)
+                    data['avatar_url'] = avatar_url
+                    app.logger.info(f"Generated avatar_url: {avatar_url}")
+
             if profile:
                 if update_user_profile(data, email):
-                    return jsonify({"success": True, "message": "Profile updated successfully!"}), 200
+                    # Return the avatar URL if it was updated
+                    response_data = {"success": True, "message": "Profile updated successfully!"}
+                    if 'avatar_url' in data:
+                        response_data["avatar_url"] = data['avatar_url']
+                    return jsonify(response_data), 200
                 else:
                     return jsonify({"success": False, "error": "Error updating profile data."}), 500
             else:
                 if create_user_profile(data):
-                    return jsonify({"success": True, "message": "Profile created successfully!"}), 200
+                    # Return the avatar URL if it was created
+                    response_data = {"success": True, "message": "Profile created successfully!"}
+                    if 'avatar_url' in data:
+                        response_data["avatar_url"] = data['avatar_url']
+                    return jsonify(response_data), 200
                 else:
                     return jsonify({"success": False, "error": "Error creating profile data."}), 500
 
@@ -702,8 +733,8 @@ def upload_avatar():
         file.save(filepath)
         app.logger.info(f"Avatar file successfully saved to: {filepath}")
         
-        # Generate URL
-        avatar_url = url_for('static', filename=f'uploads/{unique_filename}')
+        # Generate URL - ensure it's a valid URL
+        avatar_url = url_for('static', filename=f'uploads/{unique_filename}', _external=True)
         app.logger.info(f"Generated avatar_url: {avatar_url}")
         
         # Check if user profile exists

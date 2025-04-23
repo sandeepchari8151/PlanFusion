@@ -22,16 +22,18 @@ document.addEventListener("DOMContentLoaded", function () {
     const editProfileBtn = document.getElementById('editProfileBtn');
     const editProfileModal = document.getElementById('editProfileModal');
     const editProfileForm = document.getElementById('editProfileForm');
-    const closeBtn = document.querySelector('.close-button');
-    const cancelBtn = document.querySelector('.cancel-button');
+    const closeBtn = document.querySelector('#editProfileModal .close-button');
+    const cancelBtn = document.querySelector('#editProfileModal .cancel-button');
     const saveBtn = document.querySelector('.save-button');
     const avatarInput = document.getElementById('editAvatar');
-    const avatarPreview = document.getElementById('profileAvatar');
+    const avatarPreview = document.getElementById('editAvatarPreview');
+    const profileAvatar = document.getElementById('profileAvatar');
     
     // State
     let isEditing = false;
     let originalValues = {};
     let socialEditEnabledByFocus = false;
+    let newAvatarFile = null;
 
     // Function to adjust card height based on content
     function adjustCardHeight(cardElement) {
@@ -157,143 +159,176 @@ document.addEventListener("DOMContentLoaded", function () {
     
     // Function to open modal
     function openModal() {
-        if (!editProfileModal) {
-            console.error('Modal element not found');
-            return;
-        }
-        
-        // Store original values
-        originalValues = {
-            fullName: document.querySelector('.card-fullname')?.textContent.trim() || '',
-            jobTitle: document.querySelector('.card-jobtitle')?.textContent.trim() || '',
-            bio: document.querySelector('.card-desc')?.textContent.trim() || '',
-            address: document.querySelector('.contact-address .contact-text')?.textContent.trim() || '',
-            phone: document.querySelector('.contact-phone .contact-text')?.textContent.trim() || '',
-            email: document.querySelector('.contact-email .contact-text')?.textContent.trim() || '',
-            linkedin: document.querySelector('.card-social a[href*="linkedin"]')?.getAttribute('href') || '',
-            twitter: document.querySelector('.card-social a[href*="twitter"]')?.getAttribute('href') || '',
-            instagram: document.querySelector('.card-social a[href*="instagram"]')?.getAttribute('href') || '',
-            facebook: document.querySelector('.card-social a[href*="facebook"]')?.getAttribute('href') || ''
-        };
-        
-        // Populate form fields
-        if (editProfileForm) {
-            editProfileForm["full_name"].value = originalValues.fullName;
-            editProfileForm["job_title"].value = originalValues.jobTitle;
-            editProfileForm["bio"].value = originalValues.bio;
-            editProfileForm["address"].value = originalValues.address;
-            editProfileForm["phone"].value = originalValues.phone;
-            editProfileForm["email"].value = originalValues.email;
-            editProfileForm["linkedin_url"].value = originalValues.linkedin;
-            editProfileForm["twitter_url"].value = originalValues.twitter;
-            editProfileForm["instagram_url"].value = originalValues.instagram;
-            editProfileForm["facebook_url"].value = originalValues.facebook;
-        }
-        
-        // Show modal
-        editProfileModal.style.display = 'block';
-        setTimeout(() => {
-            editProfileModal.classList.add('show');
-        }, 10);
-        document.body.style.overflow = 'hidden';
-        
-        // Focus first input
-        const firstInput = editProfileForm?.querySelector('input, textarea');
-        if (firstInput) firstInput.focus();
-
-        // Add avatar change message in edit profile modal
-        const avatarSection = editProfileModal.querySelector('.avatar-section');
-        if (avatarSection) {
-            const existingMessage = avatarSection.querySelector('.avatar-message');
-            if (!existingMessage) {
-                const avatarMessage = document.createElement('p');
-                avatarMessage.className = 'avatar-message';
-                avatarMessage.textContent = 'You can change your avatar by clicking on it in the profile section';
-                avatarMessage.style.marginTop = '10px';
-                avatarMessage.style.fontSize = '14px';
-                avatarMessage.style.color = '#666';
-                avatarMessage.style.textAlign = 'center';
-                avatarSection.appendChild(avatarMessage);
-            }
+        if (editProfileModal) {
+            editProfileModal.style.display = 'flex';
+            setTimeout(() => {
+                editProfileModal.classList.add('show');
+            }, 10);
         }
     }
     
     // Function to close modal
-    function closeModal() {
-        if (!editProfileModal) {
-            console.error('Modal element not found');
-            return;
+    function closeModal(e) {
+        if (e) {
+            e.preventDefault();
         }
-        
-        // Hide modal
-        editProfileModal.classList.remove('show');
-        setTimeout(() => {
-            editProfileModal.style.display = 'none';
-        }, 300);
-        document.body.style.overflow = '';
-        
-        // Reset form values to original state
-        if (editProfileForm) {
-            editProfileForm["full_name"].value = originalValues.fullName;
-            editProfileForm["job_title"].value = originalValues.jobTitle;
-            editProfileForm["bio"].value = originalValues.bio;
-            editProfileForm["address"].value = originalValues.address;
-            editProfileForm["phone"].value = originalValues.phone;
-            editProfileForm["email"].value = originalValues.email;
-            editProfileForm["linkedin_url"].value = originalValues.linkedin;
-            editProfileForm["twitter_url"].value = originalValues.twitter;
-            editProfileForm["instagram_url"].value = originalValues.instagram;
-            editProfileForm["facebook_url"].value = originalValues.facebook;
-        }
-        
-        // Remove avatar message when closing modal
-        const avatarMessage = editProfileModal.querySelector('.avatar-message');
-        if (avatarMessage) {
-            avatarMessage.remove();
+        if (editProfileModal) {
+            editProfileModal.classList.remove('show');
+            setTimeout(() => {
+                editProfileModal.style.display = 'none';
+            }, 300);
         }
     }
     
+    // Function to handle avatar preview
+    function handleAvatarPreview(file) {
+        if (file) {
+            const reader = new FileReader();
+            reader.onload = (e) => {
+                avatarPreview.src = e.target.result;
+            };
+            reader.readAsDataURL(file);
+        }
+    }
+
+    // Add click handler for avatar preview
+    if (avatarPreview) {
+        avatarPreview.addEventListener('click', () => {
+            avatarInput.click();
+        });
+    }
+
+    // Add change handler for avatar input
+    if (avatarInput) {
+        avatarInput.addEventListener('change', (e) => {
+            const file = e.target.files[0];
+            if (file) {
+                // Validate file type
+                const allowedTypes = ['image/jpeg', 'image/png', 'image/gif'];
+                if (!allowedTypes.includes(file.type)) {
+                    showAlert('Please select a valid image file (JPEG, PNG, or GIF)', 'danger');
+                    return;
+                }
+
+                // Validate file size (max 5MB)
+                if (file.size > 5 * 1024 * 1024) {
+                    showAlert('File size should be less than 5MB', 'danger');
+                    return;
+                }
+
+                newAvatarFile = file;
+                
+                // Create a temporary URL for the selected file
+                const tempUrl = URL.createObjectURL(file);
+                
+                // Update specific avatar elements
+                const profileAvatar = document.getElementById('profileAvatar');
+                const editAvatarPreview = document.getElementById('editAvatarPreview');
+                const navAvatar = document.getElementById('profile-toggle-avatar');
+                
+                if (profileAvatar) profileAvatar.src = tempUrl;
+                if (editAvatarPreview) editAvatarPreview.src = tempUrl;
+                if (navAvatar) navAvatar.src = tempUrl;
+
+                // Update any other avatar images
+                document.querySelectorAll('.card-avatar, .avatar-preview').forEach(avatar => {
+                    if (avatar.id !== 'profileAvatar' && avatar.id !== 'editAvatarPreview') {
+                        avatar.src = tempUrl;
+                    }
+                });
+            }
+        });
+    }
+
     // Function to save profile changes
-    function saveProfileChanges() {
+    async function saveProfileChanges() {
         if (!editProfileForm) return;
 
-        // Get form data
-        const formData = new FormData(editProfileForm);
-        const profileData = {};
-        formData.forEach((value, key) => {
-            profileData[key] = value;
-        });
+        try {
+            const formData = new FormData(editProfileForm);
+            
+            // If there's a new avatar file, upload it first
+            if (newAvatarFile) {
+                const avatarFormData = new FormData();
+                avatarFormData.append('avatar', newAvatarFile);
+                
+                const avatarResponse = await fetch('/upload_avatar', {
+                    method: 'POST',
+                    body: avatarFormData
+                });
+                
+                const avatarResult = await avatarResponse.json();
+                if (!avatarResult.success) {
+                    throw new Error(avatarResult.error || 'Failed to upload avatar');
+                }
+                
+                // Update avatars immediately with the new URL
+                const timestamp = new Date().getTime();
+                const newAvatarUrl = `${avatarResult.avatar_url}?t=${timestamp}`;
+                
+                // Update specific avatar elements
+                const profileAvatar = document.getElementById('profileAvatar');
+                const editAvatarPreview = document.getElementById('editAvatarPreview');
+                const navAvatar = document.getElementById('profile-toggle-avatar');
+                
+                if (profileAvatar) profileAvatar.src = newAvatarUrl;
+                if (editAvatarPreview) editAvatarPreview.src = newAvatarUrl;
+                if (navAvatar) navAvatar.src = newAvatarUrl;
 
-        // Update profile display
-        const updateElement = (selector, value) => {
-            const element = document.querySelector(selector);
-            if (element) element.textContent = value;
-        };
+                // Update any other avatar images
+                document.querySelectorAll('.card-avatar, .avatar-preview').forEach(avatar => {
+                    if (avatar.id !== 'profileAvatar' && avatar.id !== 'editAvatarPreview') {
+                        avatar.src = newAvatarUrl;
+                    }
+                });
+                
+                // Add the avatar URL to the profile form data
+                formData.append('avatar_url', avatarResult.avatar_url);
+            }
 
-        // Update profile information
-        updateElement('.card-fullname', profileData.full_name);
-        updateElement('.card-jobtitle', profileData.job_title);
-        updateElement('.card-desc', profileData.bio);
-        updateElement('.contact-address .contact-text', profileData.address);
-        updateElement('.contact-phone .contact-text', profileData.phone);
-        updateElement('.contact-email .contact-text', profileData.email);
+            // Send the profile data to the server
+            const response = await fetch('/profile', {
+                method: 'POST',
+                body: formData
+            });
 
-        // Update social media links
-        const updateSocialLink = (platform, url) => {
-            const link = document.querySelector(`.card-social a[href*="${platform}"]`);
-            if (link) link.href = url;
-        };
+            const result = await response.json();
 
-        updateSocialLink('linkedin', profileData.linkedin_url);
-        updateSocialLink('twitter', profileData.twitter_url);
-        updateSocialLink('instagram', profileData.instagram_url);
-        updateSocialLink('facebook', profileData.facebook_url);
+            if (result.success) {
+                // Update profile display
+                const updateElement = (selector, value) => {
+                    const element = document.querySelector(selector);
+                    if (element) element.textContent = value;
+                };
 
-        // Show success message
-        showAlert('Profile updated successfully', 'success');
+                // Update profile information
+                updateElement('.card-fullname', formData.get('full_name'));
+                updateElement('.card-jobtitle', formData.get('job_title'));
+                updateElement('.card-desc', formData.get('bio'));
+                updateElement('.contact-address .contact-text', formData.get('address'));
+                updateElement('.contact-phone .contact-text', formData.get('phone'));
+                updateElement('.contact-email .contact-text', formData.get('email'));
 
-        // Close modal
-        closeModal();
+                // Update social media links
+                const updateSocialLink = (platform, url) => {
+                    const link = document.querySelector(`.card-social a[href*="${platform}"]`);
+                    if (link) link.href = url;
+                };
+
+                updateSocialLink('linkedin', formData.get('linkedin_url'));
+                updateSocialLink('twitter', formData.get('twitter_url'));
+                updateSocialLink('instagram', formData.get('instagram_url'));
+                updateSocialLink('facebook', formData.get('facebook_url'));
+
+                showAlert('Profile updated successfully', 'success');
+                closeModal();
+            } else {
+                showAlert(result.error || 'Failed to update profile', 'danger');
+            }
+        } catch (error) {
+            console.error('Error updating profile:', error);
+            showAlert('An error occurred while updating the profile', 'danger');
+        }
     }
 
     // Function to show alert
@@ -320,21 +355,21 @@ document.addEventListener("DOMContentLoaded", function () {
 
     // Event Listeners
     if (editProfileBtn) {
-        editProfileBtn.addEventListener('click', (e) => {
+        editProfileBtn.addEventListener('click', function(e) {
             e.preventDefault();
             openModal();
         });
     }
     
     if (closeBtn) {
-        closeBtn.addEventListener('click', (e) => {
+        closeBtn.addEventListener('click', function(e) {
             e.preventDefault();
             closeModal();
         });
     }
 
     if (cancelBtn) {
-        cancelBtn.addEventListener('click', (e) => {
+        cancelBtn.addEventListener('click', function(e) {
             e.preventDefault();
             closeModal();
         });
@@ -347,18 +382,14 @@ document.addEventListener("DOMContentLoaded", function () {
         });
     }
 
-    // Remove avatar upload from edit profile modal
-    if (avatarInput && avatarPreview) {
-        // Remove the file input element
-        avatarInput.remove();
-    }
-
     // Close modal when clicking outside
-    window.addEventListener('click', (e) => {
-        if (e.target === editProfileModal) {
-            closeModal();
-        }
-    });
+    if (editProfileModal) {
+        editProfileModal.addEventListener('click', function(e) {
+            if (e.target === editProfileModal) {
+                closeModal();
+            }
+        });
+    }
 
     // Handle form submission
     if (editProfileForm) {
@@ -386,7 +417,6 @@ document.addEventListener("DOMContentLoaded", function () {
     // Initialize
     initializeProfile();
     setupEventListeners();
-    setupAvatarUpload();
     setupSocialMediaLinks();
 
     function initializeProfile() {
@@ -403,51 +433,6 @@ document.addEventListener("DOMContentLoaded", function () {
                     enterEditMode();
                 }
             });
-        });
-    }
-
-    function setupAvatarUpload() {
-        avatar?.addEventListener('click', () => {
-            fileInput?.click();
-        });
-
-        fileInput?.addEventListener('change', async (e) => {
-            const file = e.target.files[0];
-            if (file) {
-                try {
-                    const formData = new FormData();
-                    formData.append('avatar', file);
-
-                    const response = await fetch('/upload_avatar', {
-                        method: 'POST',
-                        body: formData
-                    });
-
-                    const data = await response.json();
-                    if (data.success) {
-                        const timestamp = new Date().getTime();
-                        const newAvatarUrl = `${data.avatar_url}?t=${timestamp}`;
-                        
-                        // Update main profile avatar
-                        avatar.src = newAvatarUrl;
-                        
-                        // Update navigation profile avatar
-                        const navProfile = document.querySelector('.nav-profile');
-                        if (navProfile) {
-                            const navAvatar = navProfile.querySelector('img');
-                            if (navAvatar) {
-                                navAvatar.src = newAvatarUrl;
-                            }
-                        }
-                        showAlert('Avatar updated successfully!', 'success');
-                    } else {
-                        showAlert('Failed to update avatar', 'danger');
-                    }
-                } catch (error) {
-                    console.error('Error uploading avatar:', error);
-                    showAlert('Error uploading avatar', 'danger');
-                }
-            }
         });
     }
 
