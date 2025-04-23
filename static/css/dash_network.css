@@ -318,8 +318,11 @@
 
 /* --- Contact List View Styling --- */
 .contact-list {
-    display: none;
+    list-style: none;
     padding: 20px;
+    margin: 0;
+    width: 100%;
+    display: none;
 }
 
 .contact-list.active {
@@ -335,16 +338,25 @@
     display: flex;
     justify-content: space-between;
     align-items: center;
+    width: 100%;
+    transition: transform 0.2s, box-shadow 0.2s;
+}
+
+.contact-item:hover {
+    transform: translateY(-2px);
+    box-shadow: 0 4px 8px rgba(0,0,0,0.15);
 }
 
 .contact-main {
     flex: 1;
+    margin-right: 15px;
 }
 
 .contact-info h4 {
     margin: 0 0 10px 0;
     color: #333;
     font-size: 1.1em;
+    font-weight: 500;
 }
 
 .contact-details {
@@ -365,6 +377,7 @@
 .contact-details i {
     color: #8a2be2;
     width: 16px;
+    font-size: 1.1em;
 }
 
 .contact-actions {
@@ -372,24 +385,31 @@
     gap: 10px;
 }
 
-.contact-actions button {
+.contact-actions .action-btn {
     background: none;
     border: none;
     padding: 8px;
     cursor: pointer;
     border-radius: 4px;
     transition: background-color 0.2s;
+    display: flex;
+    align-items: center;
+    justify-content: center;
 }
 
-.contact-actions button:hover {
+.contact-actions .action-btn:hover {
     background-color: #f0f0f0;
 }
 
-.edit-contact i {
+.contact-actions .action-btn i {
+    font-size: 1.2em;
+}
+
+.contact-actions .edit-contact i {
     color: #28a745;
 }
 
-.delete-contact i {
+.contact-actions .delete-contact i {
     color: #dc3545;
 }
 
@@ -474,13 +494,7 @@
     font-weight: 500;
     margin: 0;
     padding: 0;
-    display: block;
-    margin-block-start: 1em;
-    margin-block-end: 1em;
-    margin-inline-start: 0px;
-    margin-inline-end: 0px;
-    unicode-bidi: isolate;
-    font-family: serif;
+    font-family: "Poppins", sans-serif;
 }
 
 /* Contact Grid View */
@@ -840,6 +854,30 @@
     .form-group textarea {
         min-height: 80px;
     }
+
+    .contact-list {
+        padding: 15px;
+    }
+
+    .contact-item {
+        padding: 12px;
+        flex-direction: column;
+        align-items: flex-start;
+    }
+
+    .contact-main {
+        margin-right: 0;
+        margin-bottom: 10px;
+    }
+
+    .contact-actions {
+        width: 100%;
+        justify-content: flex-end;
+    }
+
+    .contact-details p {
+        font-size: 0.85em;
+    }
 }
 
 /* Small Mobile Devices */
@@ -887,5 +925,324 @@
         padding: 0.7rem;
         font-size: 0.85rem;
     }
+
+    .contact-list {
+        padding: 10px;
+    }
+
+    .contact-item {
+        padding: 10px;
+    }
+
+    .contact-info h4 {
+        font-size: 1em;
+    }
+
+    .contact-details p {
+        font-size: 0.8em;
+    }
+}
+
+/* Goal List View */
+.goal-list {
+    list-style: none;
+    padding: 0;
+    margin: 20px 0;
+    width: 100%;
+    display: block;
+}
+
+.goal-item {
+    background: white;
+    border-radius: 8px;
+    padding: 15px;
+    margin-bottom: 15px;
+    box-shadow: 0 2px 4px rgba(0,0,0,0.1);
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    width: 100%;
+}
+
+.goal-main {
+    flex: 1;
+    margin-right: 15px;
+}
+
+.goal-info h4 {
+    margin: 0 0 10px 0;
+    color: #333;
+    font-size: 1.1em;
+}
+
+.goal-details {
+    display: flex;
+    flex-direction: column;
+    gap: 8px;
+}
+
+.goal-details p {
+    margin: 0;
+    color: #666;
+    font-size: 0.9em;
+    display: flex;
+    align-items: center;
+    gap: 8px;
+}
+
+.goal-details i {
+    color: #8a2be2;
+    width: 16px;
+}
+
+.goal-actions {
+    display: flex;
+    gap: 10px;
+}
+
+.goal-actions button {
+    background: none;
+    border: none;
+    padding: 8px;
+    cursor: pointer;
+    border-radius: 4px;
+    transition: background-color 0.2s;
+}
+
+.goal-actions button:hover {
+    background-color: #f0f0f0;
+}
+
+.update-btn i {
+    color: #28a745;
+}
+
+.delete-btn i {
+    color: #dc3545;
+}
+
+/* Edit Contact Form, Notes View, and Follow-up Scheduler */
+.edit-contact-container,
+.notes-container,
+.followup-container {
+    margin: 15px 0;
+    width: 100%;
+}
+
+.notes-view,
+.followup-scheduler {
+    background: white;
+    border-radius: 8px;
+    padding: 20px;
+    box-shadow: 0 2px 4px rgba(0,0,0,0.1);
+}
+
+.notes-content {
+    margin: 15px 0;
+    padding: 15px;
+    background: #f8f9fa;
+    border-radius: 4px;
+    white-space: pre-line;
+}
+
+.notes-content p {
+    margin: 0;
+    color: #666;
+    line-height: 1.5;
+}
+
+.save-btn,
+.cancel-btn,
+.save-note-btn,
+.close-notes-btn,
+.save-followup-btn,
+.close-followup-btn {
+    padding: 8px 16px;
+    border: none;
+    border-radius: 4px;
+    cursor: pointer;
+    font-size: 0.9em;
+    transition: background-color 0.3s;
+}
+
+.save-btn,
+.save-note-btn,
+.save-followup-btn {
+    background: #28a745;
+    color: white;
+    margin-right: 10px;
+}
+
+.save-btn:hover,
+.save-note-btn:hover,
+.save-followup-btn:hover {
+    background: #218838;
+}
+
+.cancel-btn,
+.close-notes-btn,
+.close-followup-btn {
+    background: #dc3545;
+    color: white;
+}
+
+.cancel-btn:hover,
+.close-notes-btn:hover,
+.close-followup-btn:hover {
+    background: #c82333;
+}
+
+/* Form styling */
+.network-form .form-group {
+    margin-bottom: 15px;
+}
+
+.network-form label {
+    display: block;
+    margin-bottom: 5px;
+    color: #555;
+    font-weight: 500;
+}
+
+.network-form input[type="text"],
+.network-form input[type="email"],
+.network-form input[type="tel"],
+.network-form input[type="datetime-local"],
+.network-form select,
+.network-form textarea {
+    width: 100%;
+    padding: 8px 12px;
+    border: 1px solid #ddd;
+    border-radius: 4px;
+    font-size: 0.9em;
+    transition: border-color 0.3s;
+}
+
+.network-form input:focus,
+.network-form select:focus,
+.network-form textarea:focus {
+    outline: none;
+    border-color: #8a2be2;
+    box-shadow: 0 0 0 2px rgba(138, 43, 226, 0.1);
+}
+
+.network-form textarea {
+    min-height: 100px;
+    resize: vertical;
+}
+
+/* Responsive styles */
+@media (max-width: 768px) {
+    .edit-contact-container,
+    .notes-container,
+    .followup-container {
+        margin: 10px 0;
+    }
+
+    .notes-view,
+    .followup-scheduler {
+        padding: 15px;
+    }
+
+    .network-form input,
+    .network-form select,
+    .network-form textarea {
+        font-size: 0.85em;
+    }
+}
+
+@media (max-width: 480px) {
+    .notes-view,
+    .followup-scheduler {
+        padding: 10px;
+    }
+
+    .save-btn,
+    .cancel-btn,
+    .save-note-btn,
+    .close-notes-btn,
+    .save-followup-btn,
+    .close-followup-btn {
+        width: 100%;
+        margin: 5px 0;
+    }
+}
+
+/* Modal Styles */
+.modal {
+    position: fixed;
+    top: 0;
+    left: 0;
+    width: 100%;
+    height: 100%;
+    background-color: rgba(0, 0, 0, 0.5);
+    display: flex;
+    justify-content: center;
+    align-items: center;
+    z-index: 1000;
+}
+
+.edit-goal-form {
+    background: white;
+    padding: 2rem;
+    border-radius: 8px;
+    box-shadow: 0 2px 10px rgba(0, 0, 0, 0.1);
+    width: 90%;
+    max-width: 500px;
+    max-height: 90vh;
+    overflow-y: auto;
+}
+
+.edit-goal-form h3 {
+    margin-top: 0;
+    margin-bottom: 1.5rem;
+    color: #333;
+}
+
+.edit-goal-form .form-group {
+    margin-bottom: 1rem;
+}
+
+.edit-goal-form label {
+    display: block;
+    margin-bottom: 0.5rem;
+    color: #555;
+    font-weight: 500;
+}
+
+.edit-goal-form input,
+.edit-goal-form select {
+    width: 100%;
+    padding: 0.5rem;
+    border: 1px solid #ddd;
+    border-radius: 4px;
+    font-size: 1rem;
+}
+
+.edit-goal-form button {
+    padding: 0.5rem 1rem;
+    border: none;
+    border-radius: 4px;
+    cursor: pointer;
+    font-size: 1rem;
+    margin-right: 0.5rem;
+}
+
+.edit-goal-form button[type="submit"] {
+    background-color: #28a745;
+    color: white;
+}
+
+.edit-goal-form button[type="submit"]:hover {
+    background-color: #218838;
+}
+
+.edit-goal-form .cancel-edit {
+    background-color: #dc3545;
+    color: white;
+}
+
+.edit-goal-form .cancel-edit:hover {
+    background-color: #c82333;
 }
   

@@ -46,9 +46,9 @@ document.addEventListener('DOMContentLoaded', function() {
 
     // --- Navigation ---
     const navLinks = document.querySelectorAll('.nav_links .nav-item');
+    const navLinksContainer = document.getElementById('nav-links');
     const dashboardSections = document.querySelectorAll('.dashboard-container > section');
     const menuBtn = document.getElementById('menu-btn');
-    const navLinksList = document.getElementById('nav-links');
 
     navLinks.forEach(link => {
         link.addEventListener('click', function(event) {
@@ -67,8 +67,8 @@ document.addEventListener('DOMContentLoaded', function() {
             }
 
             // Close the mobile menu if it's open
-            if (window.innerWidth < 768 && navLinksList.classList.contains('open')) {
-                navLinksList.classList.remove('open');
+            if (window.innerWidth < 768 && navLinksContainer.classList.contains('open')) {
+                navLinksContainer.classList.remove('open');
                 menuBtn.querySelector('i').classList.remove('ri-close-line');
                 menuBtn.querySelector('i').classList.add('ri-menu-line');
             }
@@ -77,22 +77,35 @@ document.addEventListener('DOMContentLoaded', function() {
 
     // Menu Button Functionality
     menuBtn.addEventListener('click', () => {
-        navLinks.classList.toggle('open');
+        navLinksContainer.classList.toggle('open');
+        const menuIcon = menuBtn.querySelector('i');
+        if (navLinksContainer.classList.contains('open')) {
+            menuIcon.classList.remove('ri-menu-line');
+            menuIcon.classList.add('ri-close-line');
+        } else {
+            menuIcon.classList.remove('ri-close-line');
+            menuIcon.classList.add('ri-menu-line');
+        }
     });
 
     // Close menu when clicking outside
     document.addEventListener('click', (e) => {
-        if (!navLinks.contains(e.target) && !menuBtn.contains(e.target) && navLinks.classList.contains('open')) {
-            navLinks.classList.remove('open');
+        if (!navLinksContainer.contains(e.target) && !menuBtn.contains(e.target) && navLinksContainer.classList.contains('open')) {
+            navLinksContainer.classList.remove('open');
+            const menuIcon = menuBtn.querySelector('i');
+            menuIcon.classList.remove('ri-close-line');
+            menuIcon.classList.add('ri-menu-line');
         }
     });
 
     // Close menu when clicking on a nav link (mobile)
-    const navItems = document.querySelectorAll('.nav-item');
-    navItems.forEach(item => {
+    navLinks.forEach(item => {
         item.addEventListener('click', () => {
             if (window.innerWidth <= 768) {
-                navLinks.classList.remove('open');
+                navLinksContainer.classList.remove('open');
+                const menuIcon = menuBtn.querySelector('i');
+                menuIcon.classList.remove('ri-close-line');
+                menuIcon.classList.add('ri-menu-line');
             }
         });
     });
@@ -100,7 +113,10 @@ document.addEventListener('DOMContentLoaded', function() {
     // Handle window resize
     window.addEventListener('resize', () => {
         if (window.innerWidth > 768) {
-            navLinks.classList.remove('open');
+            navLinksContainer.classList.remove('open');
+            const menuIcon = menuBtn.querySelector('i');
+            menuIcon.classList.remove('ri-close-line');
+            menuIcon.classList.add('ri-menu-line');
         }
     });
 
@@ -569,180 +585,91 @@ function updateStats(data) {
     const progressElements = document.querySelectorAll('.progress');
     progressElements[0].style.background = `conic-gradient(#8a2be2 ${data.task_data.completion_percentage}%, #ddd ${data.task_data.completion_percentage}%)`;
     progressElements[1].style.background = `conic-gradient(#8a2be2 ${data.skill_data.completion_percentage}%, #ddd ${data.skill_data.completion_percentage}%)`;
-    progressElements[2].style.background = `conic-gradient(#8a2be2 ${data.network_data.growth_percentage}%, #ddd ${data.network_data.growth_percentage}%)`;
+    progressElements[2].style.background = `conic-gradient(#8a2be2 ${data.network_data.goal_achievement_percentage}%, #ddd ${data.network_data.goal_achievement_percentage}%)`;
 
     // Update progress labels
     document.querySelectorAll('.label')[0].textContent = `${data.task_data.completion_percentage}% completed`;
     document.querySelectorAll('.label')[1].textContent = `${data.skill_data.completion_percentage}% developed`;
-    document.querySelectorAll('.label')[2].textContent = `${data.network_data.growth_percentage}% growth`;
+    document.querySelectorAll('.label')[2].textContent = `${data.network_data.goal_achievement_percentage}% achieved`;
+
+    // Update goal stats
+    const goalStats = document.querySelectorAll('.goal-stats');
+    if (goalStats.length > 0) {
+        goalStats[0].textContent = `${data.network_data.completed_goals} of ${data.network_data.total_goals} goals completed`;
+    }
 
     // Update notifications
     updateNotifications(data);
 }
 
 function updateNotifications(data) {
-    // Update main notifications container
-    const notificationsContainer = document.querySelector('.notifications-container');
-    if (notificationsContainer) {
-        notificationsContainer.innerHTML = '';
-    }
+    const notificationsContainer = document.querySelector('.notifications');
+    if (!notificationsContainer) return;
 
-    // Update notification dropdown
-    const notificationList = document.querySelector('.notification-list');
-    const notificationBadge = document.querySelector('.notification-link .badge');
-    if (notificationList) {
-        notificationList.innerHTML = '';
-    }
+    // Clear existing notifications
+    notificationsContainer.innerHTML = '';
 
-    // Create notifications array
-    const notifications = [];
-
-    // Add pending tasks notifications
+    // Add task notifications
     if (data.task_data.pending_tasks_list && data.task_data.pending_tasks_list.length > 0) {
-        data.task_data.pending_tasks_list.forEach(task => {
-            notifications.push({
-                title: 'Pending Task',
-                message: task.name,
-                type: 'pending',
-                icon: 'fas fa-clock'
-            });
-        });
+        const taskNotification = createNotificationElement(
+            'Tasks',
+            `${data.task_data.pending_tasks_list.length} pending tasks`,
+            'task'
+        );
+        notificationsContainer.appendChild(taskNotification);
     }
 
-    // Add in-progress skills notifications
+    // Add skill notifications
     if (data.skill_data.in_progress_skills_list && data.skill_data.in_progress_skills_list.length > 0) {
-        data.skill_data.in_progress_skills_list.forEach(skill => {
-            notifications.push({
-                title: 'In Progress Skill',
-                message: skill.name,
-                type: 'in_progress',
-                icon: 'fas fa-spinner fa-spin'
-            });
+        const skillNotification = createNotificationElement(
+            'Skills',
+            `${data.skill_data.in_progress_skills_list.length} skills in progress`,
+            'skill'
+        );
+        notificationsContainer.appendChild(skillNotification);
+    }
+
+    // Add goal notifications
+    if (data.network_data.goals && data.network_data.goals.by_type) {
+        Object.entries(data.network_data.goals.by_type).forEach(([type, typeData]) => {
+            if (typeData.goals && typeData.goals.length > 0) {
+                const incompleteGoals = typeData.goals.filter(goal => goal.completed === 0);
+                if (incompleteGoals.length > 0) {
+                    const goalNotification = createNotificationElement(
+                        'Goals',
+                        `${incompleteGoals.length} incomplete ${type} goals`,
+                        'goal'
+                    );
+                    notificationsContainer.appendChild(goalNotification);
+                }
+            }
         });
     }
 
-    // Add upcoming meetings notifications
+    // Add meeting notifications
     if (data.network_data.upcoming_meetings && data.network_data.upcoming_meetings.length > 0) {
-        data.network_data.upcoming_meetings.forEach(meeting => {
-            notifications.push({
-                title: 'Upcoming Meeting',
-                message: `${meeting.name} - ${meeting.next_meeting}`,
-                type: 'meeting',
-                icon: 'fas fa-calendar-alt'
-            });
-        });
-    }
-
-    // Update notification count
-    if (notificationBadge) {
-        notificationBadge.textContent = notifications.length;
-        notificationBadge.style.display = notifications.length > 0 ? 'flex' : 'none';
-    }
-
-    // Display notifications in main container
-    if (notificationsContainer) {
-        if (notifications.length > 0) {
-            notifications.forEach(notification => {
-                const notificationElement = createNotification(
-                    notification.title,
-                    notification.message,
-                    notification.type
-                );
-                notificationsContainer.appendChild(notificationElement);
-            });
-        } else {
-            const noNotifications = createNotification(
-                'All Caught Up!',
-                'You have no pending items. Great job!',
-                'success'
-            );
-            notificationsContainer.appendChild(noNotifications);
-        }
-    }
-
-    // Display notifications in dropdown
-    if (notificationList) {
-        if (notifications.length > 0) {
-            notifications.forEach(notification => {
-                const notificationItem = document.createElement('div');
-                notificationItem.className = 'notification-item';
-                
-                const icon = document.createElement('i');
-                icon.className = notification.icon;
-                
-                const content = document.createElement('div');
-                content.className = 'notification-content';
-                
-                const title = document.createElement('h6');
-                title.textContent = notification.title;
-                
-                const message = document.createElement('p');
-                message.textContent = notification.message;
-                
-                content.appendChild(title);
-                content.appendChild(message);
-                notificationItem.appendChild(icon);
-                notificationItem.appendChild(content);
-                
-                notificationList.appendChild(notificationItem);
-            });
-        } else {
-            const noNotifications = document.createElement('div');
-            noNotifications.className = 'notification-item';
-            noNotifications.innerHTML = `
-                <i class="fas fa-check-circle text-success"></i>
-                <div class="notification-content">
-                    <h6>All Caught Up!</h6>
-                    <p>No pending items at the moment.</p>
-                </div>
-            `;
-            notificationList.appendChild(noNotifications);
-        }
+        const meetingNotification = createNotificationElement(
+            'Meetings',
+            `${data.network_data.upcoming_meetings.length} upcoming meetings`,
+            'meeting'
+        );
+        notificationsContainer.appendChild(meetingNotification);
     }
 }
 
-function createNotification(title, message, type) {
-    const notification = document.createElement('div');
-    notification.className = `notification ${type}`;
+function createNotificationElement(title, message, type) {
+    const div = document.createElement('div');
+    div.className = `notification ${type}`;
     
-    const icon = document.createElement('i');
-    icon.className = getIconClass(type);
+    div.innerHTML = `
+        <i class="ri-${type}-line notification-icon"></i>
+        <div class="notification-content">
+            <h5>${title}</h5>
+            <p>${message}</p>
+        </div>
+    `;
     
-    const content = document.createElement('div');
-    content.className = 'notification-content';
-    
-    const notificationTitle = document.createElement('h4');
-    notificationTitle.textContent = title;
-    notificationTitle.style.color = '#000000'; // Black color for title
-    
-    const notificationMessage = document.createElement('p');
-    notificationMessage.textContent = message;
-    notificationMessage.style.color = '#000000'; // Black color for message
-    
-    content.appendChild(notificationTitle);
-    content.appendChild(notificationMessage);
-    
-    notification.appendChild(icon);
-    notification.appendChild(content);
-    
-    return notification;
-}
-
-function getIconClass(type) {
-    switch(type) {
-        case 'pending':
-            return 'fas fa-clock text-warning';
-        case 'in_progress':
-            return 'fas fa-spinner fa-spin text-primary';
-        case 'meeting':
-            return 'fas fa-calendar-alt text-info';
-        case 'overdue':
-            return 'fas fa-exclamation-circle text-danger';
-        case 'success':
-            return 'fas fa-check-circle text-success';
-        default:
-            return 'fas fa-info-circle text-info';
-    }
+    return div;
 }
 
 // Setup navigation between sections

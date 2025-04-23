@@ -283,20 +283,51 @@ def user_dash():
     # Get network data
     contacts = list(contacts_collection.find({"user_email": email}))
     goals = list(goals_collection.find({"user_email": email}))
-    completed_goals = [g for g in goals if g.get('completed', 0) >= g.get('target', 0)]
+    
+    # Debug logging
+    app.logger.info(f"Found {len(goals)} total goals for user {email}")
+    for goal in goals:
+        app.logger.info(f"Goal: {goal.get('description')}, Type: {goal.get('type')}, Status: {goal.get('status')}, Target: {goal.get('target')}, Completed: {goal.get('completed')}")
+    
+    current_month = datetime.now().month
+    new_contacts_this_month = len([c for c in contacts if c.get('created_at', datetime.now()).month == current_month])
+    meetings_attended = len([c for c in contacts if c.get('last_meeting') and c.get('last_meeting').month == current_month])
+    follow_ups = len([c for c in contacts if c.get('next_meeting') and c.get('next_meeting') > datetime.now()])
+    
+    # Calculate completed goals with detailed logging
+    completed_goals = 0
+    for goal in goals:
+        is_completed = (
+            goal.get('status') == 'completed' or 
+            (goal.get('completed', 0) >= goal.get('target', 0) and goal.get('target', 0) > 0)
+        )
+        if is_completed:
+            completed_goals += 1
+            app.logger.info(f"Counting completed goal: {goal.get('description')} (ID: {goal.get('_id')})")
+        else:
+            app.logger.info(f"Goal not counted as completed: {goal.get('description')} (ID: {goal.get('_id')})")
+            app.logger.info(f"  Status: {goal.get('status')}")
+            app.logger.info(f"  Completed: {goal.get('completed')}")
+            app.logger.info(f"  Target: {goal.get('target')}")
+    
+    total_goals = len(goals)
+    goal_achievement_percentage = round((completed_goals / total_goals * 100) if total_goals > 0 else 0)
+    
+    app.logger.info(f"=== Final Goals Calculation ===")
+    app.logger.info(f"Completed goals: {completed_goals}")
+    app.logger.info(f"Total goals: {total_goals}")
+    app.logger.info(f"Achievement percentage: {goal_achievement_percentage}%")
+    
+    # Get upcoming meetings
+    upcoming_meetings = [c for c in contacts if c.get('next_meeting') and c.get('next_meeting') > datetime.now()]
+    upcoming_meetings.sort(key=lambda x: x.get('next_meeting', datetime.max))
     
     # Calculate percentages
     total_tasks = len(tasks)
     total_skills = len(skills)
-    total_goals = len(goals)
     
     task_completion_percentage = round((len(completed_tasks) / total_tasks * 100) if total_tasks > 0 else 0)
     skill_completion_percentage = round((len(completed_skills) / total_skills * 100) if total_skills > 0 else 0)
-    goal_achievement_percentage = round((len(completed_goals) / total_goals * 100) if total_goals > 0 else 0)
-    
-    # Calculate network growth percentage (based on new contacts this month)
-    current_month = datetime.now().month
-    new_contacts_this_month = len([c for c in contacts if c.get('created_at', datetime.now()).month == current_month])
     network_growth_percentage = round((new_contacts_this_month / len(contacts) * 100) if len(contacts) > 0 else 0)
 
     return render_template('user_dash.html',
@@ -313,7 +344,7 @@ def user_dash():
         new_contacts_count=new_contacts_this_month,
         upcoming_meetings_count=len([c for c in contacts if c.get('next_meeting') and c.get('next_meeting') > datetime.now()]),
         network_growth_percentage=network_growth_percentage,
-        goals_achieved_count=len(completed_goals),
+        goals_achieved_count=completed_goals,
         total_goals_count=total_goals,
         goal_achievement_percentage=goal_achievement_percentage
     )
@@ -327,6 +358,59 @@ def dashboard_data():
     """
     try:
         email = session['user_email']
+        
+        # Get network data with more detailed query
+        app.logger.info(f"=== Starting Goals Query ===")
+        app.logger.info(f"Querying goals for user: {email}")
+        
+        # Get all goals for the user
+        goals = list(goals_collection.find({"user_email": email}))
+        app.logger.info(f"Total goals found: {len(goals)}")
+        
+        # Group goals by type
+        goals_by_type = {}
+        for goal in goals:
+            goal_type = goal.get('type', 'other')
+            if goal_type not in goals_by_type:
+                goals_by_type[goal_type] = []
+            goals_by_type[goal_type].append(goal)
+            app.logger.info(f"Goal found - Description: {goal.get('description')}, Type: {goal_type}, Status: {goal.get('status')}, Target: {goal.get('target')}, Completed: {goal.get('completed')}")
+        
+        # Calculate completed goals for each type
+        completed_goals_by_type = {}
+        total_goals_by_type = {}
+        achievement_percentage_by_type = {}
+        
+        for goal_type, type_goals in goals_by_type.items():
+            completed_goals = 0
+            for goal in type_goals:
+                is_completed = (
+                    goal.get('status') == 'completed' or 
+                    (goal.get('completed', 0) >= goal.get('target', 0) and goal.get('target', 0) > 0)
+                )
+                if is_completed:
+                    completed_goals += 1
+                    app.logger.info(f"Counting completed goal: {goal.get('description')} (ID: {goal.get('_id')})")
+                else:
+                    app.logger.info(f"Goal not counted as completed: {goal.get('description')} (ID: {goal.get('_id')})")
+                    app.logger.info(f"  Status: {goal.get('status')}")
+                    app.logger.info(f"  Completed: {goal.get('completed')}")
+                    app.logger.info(f"  Target: {goal.get('target')}")
+            
+            total_goals = len(type_goals)
+            completed_goals_by_type[goal_type] = completed_goals
+            total_goals_by_type[goal_type] = total_goals
+            achievement_percentage_by_type[goal_type] = round((completed_goals / total_goals * 100) if total_goals > 0 else 0)
+        
+        # Calculate total completed goals and achievement percentage
+        total_completed_goals = sum(completed_goals_by_type.values())
+        total_all_goals = sum(total_goals_by_type.values())
+        goal_achievement_percentage = round((total_completed_goals / total_all_goals * 100) if total_all_goals > 0 else 0)
+        
+        app.logger.info(f"=== Final Goals Calculation ===")
+        app.logger.info(f"Total completed goals: {total_completed_goals}")
+        app.logger.info(f"Total all goals: {total_all_goals}")
+        app.logger.info(f"Goal achievement percentage: {goal_achievement_percentage}%")
         
         # Get tasks data
         tasks = list(db.dashboard_tasks.find({"user_email": email}))
@@ -343,10 +427,6 @@ def dashboard_data():
         
         # Get network data
         contacts = list(contacts_collection.find({"user_email": email}))
-        current_month = datetime.now().month
-        new_contacts_this_month = len([c for c in contacts if c.get('created_at', datetime.now()).month == current_month])
-        meetings_attended = len([c for c in contacts if c.get('last_meeting') and c.get('last_meeting').month == current_month])
-        follow_ups = len([c for c in contacts if c.get('next_meeting') and c.get('next_meeting') > datetime.now()])
         
         # Get upcoming meetings
         upcoming_meetings = [c for c in contacts if c.get('next_meeting') and c.get('next_meeting') > datetime.now()]
@@ -358,7 +438,7 @@ def dashboard_data():
         
         task_completion_percentage = round((len(completed_tasks) / total_tasks * 100) if total_tasks > 0 else 0)
         skill_completion_percentage = round((len(completed_skills) / total_skills * 100) if total_skills > 0 else 0)
-        network_growth_percentage = round((new_contacts_this_month / len(contacts) * 100) if len(contacts) > 0 else 0)
+        network_growth_percentage = round((len([c for c in contacts if c.get('created_at', datetime.now()).month == datetime.now().month]) / len(contacts) * 100) if len(contacts) > 0 else 0)
 
         response_data = {
             'task_data': {
@@ -378,10 +458,32 @@ def dashboard_data():
             },
             'network_data': {
                 'total_contacts': len(contacts),
-                'new_contacts': new_contacts_this_month,
-                'meetings_attended': meetings_attended,
-                'follow_ups': follow_ups,
+                'new_contacts': len([c for c in contacts if c.get('created_at', datetime.now()).month == datetime.now().month]),
+                'meetings_attended': len([c for c in contacts if c.get('lastInteraction') and c.get('lastInteraction').month == datetime.now().month]),
+                'follow_ups': len([c for c in contacts if c.get('next_meeting') and c.get('next_meeting') > datetime.now()]),
                 'growth_percentage': network_growth_percentage,
+                'completed_goals': total_completed_goals,
+                'total_goals': total_all_goals,
+                'goal_achievement_percentage': goal_achievement_percentage,
+                'goals': {
+                    'by_type': {
+                        goal_type: {
+                            'completed': completed_goals_by_type.get(goal_type, 0),
+                            'total': total_goals_by_type.get(goal_type, 0),
+                            'achievement_percentage': achievement_percentage_by_type.get(goal_type, 0),
+                            'goals': [{
+                                'description': g.get('description', 'Unnamed Goal'),
+                                'type': g.get('type', 'other'),
+                                'target': int(g.get('target', 0)),
+                                'completed': 1 if (
+                                    g.get('status') == 'completed' or 
+                                    (g.get('completed', 0) >= g.get('target', 0) and g.get('target', 0) > 0)
+                                ) else 0,
+                                'deadline': g.get('deadline').strftime('%Y-%m-%d') if g.get('deadline') else None
+                            } for g in type_goals]
+                        } for goal_type, type_goals in goals_by_type.items()
+                    }
+                },
                 'upcoming_meetings': [{
                     'name': m.get('name', 'Unnamed Contact'),
                     'next_meeting': m.get('next_meeting').strftime('%Y-%m-%d %H:%M') if m.get('next_meeting') else None
@@ -389,7 +491,9 @@ def dashboard_data():
             }
         }
         
-        app.logger.info(f"Final response data: {response_data}")  # Debug log
+        app.logger.info(f"=== Final Response Data ===")
+        app.logger.info(f"Network data in response: {response_data['network_data']}")
+        
         return jsonify(response_data)
 
     except Exception as e:
@@ -755,6 +859,64 @@ def delete_goal(goal_id):
     if result.deleted_count > 0:
         return jsonify({'message': 'Goal deleted successfully'}), 200
     return jsonify({'message': 'Goal not found'}), 404
+
+@app.route('/api/goals/<goal_id>', methods=['PUT'])
+@login_required
+def update_goal(goal_id):
+    try:
+        email = session['user_email']
+        data = request.get_json()
+        
+        # Verify the goal belongs to the user
+        goal = goals_collection.find_one({'_id': ObjectId(goal_id), 'user_email': email})
+        if not goal:
+            return jsonify({'message': 'Goal not found or unauthorized'}), 404
+            
+        # Prepare update data
+        update_data = {}
+        
+        # Update fields if provided
+        if 'description' in data:
+            update_data['description'] = data['description']
+        if 'type' in data:
+            update_data['type'] = data['type']
+        if 'target' in data:
+            try:
+                update_data['target'] = int(data['target'])
+            except (ValueError, TypeError):
+                return jsonify({'message': 'Invalid target value'}), 400
+        if 'completed' in data:
+            try:
+                update_data['completed'] = int(data['completed'])
+            except (ValueError, TypeError):
+                return jsonify({'message': 'Invalid completed value'}), 400
+        if 'deadline' in data:
+            try:
+                update_data['deadline'] = datetime.strptime(data['deadline'], '%Y-%m-%d')
+            except ValueError:
+                return jsonify({'message': 'Invalid deadline format. Use YYYY-MM-DD'}), 400
+                
+        # Update the goal
+        result = goals_collection.update_one(
+            {'_id': ObjectId(goal_id), 'user_email': email},
+            {'$set': update_data}
+        )
+        
+        if result.modified_count > 0:
+            updated_goal = goals_collection.find_one({'_id': ObjectId(goal_id)})
+            if updated_goal:
+                updated_goal['_id'] = str(updated_goal['_id'])
+                if updated_goal.get('deadline'):
+                    updated_goal['deadline'] = updated_goal['deadline'].strftime('%Y-%m-%d')
+                return jsonify(updated_goal)
+            else:
+                return jsonify({'message': 'Error retrieving updated goal'}), 500
+        else:
+            return jsonify({'message': 'No changes were made to the goal'}), 200
+            
+    except Exception as e:
+        app.logger.error(f"Error updating goal: {str(e)}")
+        return jsonify({'message': f'An error occurred while updating the goal: {str(e)}'}), 500
 
 # --- Skill API Endpoints ---
 @app.route('/api/skills', methods=['GET'])

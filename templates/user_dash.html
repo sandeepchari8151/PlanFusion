@@ -27,7 +27,6 @@
   <nav>
     <div class="nav_header">
       <div class="nav_logo">
-        <img src="{{ url_for('static', filename='images/logo.png') }}" alt="Logo">
         <a href="#">Plan<span>Fusion</span></a>
       </div>
       <div class="nav_menu_btn" id="menu-btn">
@@ -51,14 +50,25 @@
       <div class="notification-wrapper">
         <a href="#" class="nav-link notification-link">
           <i class="ri-notification-3-line"></i>
-          <span class="badge">0</span>
-          <div class="notification-dropdown">
+          <span id="notificationCount" class="badge">0</span>
+          <div id="notificationDropdown" class="notification-dropdown">
             <div class="notification-header">
               <h4>Notifications</h4>
               <button class="clear-notifications">Clear All</button>
             </div>
-            <div class="notification-list">
-              <!-- Notifications will be dynamically added here -->
+            <div class="notification-sections">
+              <div class="notification-section pending-section">
+                <h4>Pending Items</h4>
+                <div class="notification-list pending-list">
+                  <!-- Pending notifications will be added here -->
+                </div>
+              </div>
+              <div class="notification-section completed-section">
+                <h4>Completed Items</h4>
+                <div class="notification-list completed-list">
+                  <!-- Completed notifications will be added here -->
+                </div>
+              </div>
             </div>
           </div>
         </a>
@@ -87,6 +97,10 @@
     <section id="home" class="dashboard-section active">
       <h2>Welcome to Plan Fusion, {{ profile.full_name if profile and profile.full_name else 'User' }}</h2>
       <p>Manage your tasks, skills, and networking all in one place.</p>
+
+      <div id="notificationContainer" class="notifications-container">
+        <!-- Notifications will be dynamically added here -->
+      </div>
 
       <div class="info-data">
         <div class="card">
@@ -125,7 +139,7 @@
         <div class="card">
           <div class="head">
             <div>
-              <h2>{{ goals_achieved_count }}{{ total_goals_count }}</h2>
+              <h2>{{ goals_achieved_count }}/{{ total_goals_count }}</h2>
               <p>Networking Goals</p>
             </div>
             <i class='bx bx-flag-checkered icon'></i>

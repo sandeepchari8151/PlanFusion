@@ -1253,7 +1253,7 @@
     padding: 0;
 }
 
-.tasks-header p, .skills-header p, .network-header p {
+.tasks-header p, .skills-header p{
     font-size: 1em;
     color: #333;
     font-weight: 500;
