@@ -607,7 +607,7 @@ function updateNotifications(data) {
     if (!notificationsContainer) return;
 
     // Clear existing notifications
-    notificationsContainer.innerHTML = '';
+        notificationsContainer.innerHTML = '';
 
     // Add task notifications
     if (data.task_data.pending_tasks_list && data.task_data.pending_tasks_list.length > 0) {

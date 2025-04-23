@@ -595,13 +595,13 @@ document.addEventListener("DOMContentLoaded", function () {
     function sortContacts(criteria) {
         contacts.sort((a, b) => {
             switch(criteria) {
-                case 'name':
+                    case 'name':
                     return a.name.localeCompare(b.name);
-                case 'category':
+                    case 'category':
                     return a.category.localeCompare(b.category);
-                case 'interaction':
+                    case 'interaction':
                     return new Date(b.lastInteraction) - new Date(a.lastInteraction);
-                default:
+                    default:
                     return 0;
             }
         });
