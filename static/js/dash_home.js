@@ -1,32 +1,810 @@
-document.addEventListener("DOMContentLoaded", function () {
-    // 🛠️ Common Variables
-    const sections = document.querySelectorAll(".dashboard-section");
-    const taskInput = document.getElementById("taskInput");
-    const taskList = document.getElementById("taskList");
+// Chart management system
+const chartManager = {
+    charts: {
+        taskProgress: null,
+        skillDev: null,
+        networkGrowth: null
+    },
 
-    let selectedDueDate = "";
-    let selectedReminder = "";
-    let selectedRepeat = "";
-    let completedTasks = 0, remainingTasks = 0;
+    destroyAll: function() {
+        Object.keys(this.charts).forEach(key => {
+            if (this.charts[key] && typeof this.charts[key].destroy === 'function') {
+                try {
+                    this.charts[key].destroy();
+                } catch (error) {
+                    console.error(`Error destroying ${key} chart:`, error);
+                }
+                this.charts[key] = null;
+            }
+        });
+    },
 
-    // 🛠️ Reset dropdowns on page load (fix for reload issue)
-    resetDropdowns();
+    clearCanvas: function(canvasId) {
+        const canvas = document.getElementById(canvasId);
+        if (canvas) {
+            const context = canvas.getContext('2d');
+            context.clearRect(0, 0, canvas.width, canvas.height);
+            canvas.width = canvas.width;
+        }
+    },
 
-    // 🔹 Sidebar Navigation
-    document.querySelector(".nav_links").addEventListener("click", function (e) {
-        if (e.target.matches(".nav-item")) {
-            e.preventDefault(); // prevent default anchor behavior
-            let target = e.target.getAttribute("data-target");
-    
-            sections.forEach(section => section.classList.remove("active"));
-            document.getElementById(target).classList.add("active");
-    
-            highlightActiveNavItem(e.target);
+    clearAllCanvases: function() {
+        this.clearCanvas('taskProgressChart');
+        this.clearCanvas('skillProgressChart');
+        this.clearCanvas('networkGrowthChart');
+    }
+};
+
+// Initialize charts when the page loads
+document.addEventListener('DOMContentLoaded', function() {
+    setupNavigation();
+    setupMenuLinks();
+    fetchDashboardData();
+
+    // Set up periodic data refresh (every 5 minutes)
+    setInterval(fetchDashboardData, 300000);
+
+    // --- Navigation ---
+    const navLinks = document.querySelectorAll('.nav_links .nav-item');
+    const dashboardSections = document.querySelectorAll('.dashboard-container > section');
+    const menuBtn = document.getElementById('menu-btn');
+    const navLinksList = document.getElementById('nav-links');
+
+    navLinks.forEach(link => {
+        link.addEventListener('click', function(event) {
+            event.preventDefault();
+            const targetId = this.getAttribute('data-target');
+
+            // Remove active class from all nav items and sections
+            navLinks.forEach(item => item.classList.remove('active'));
+            dashboardSections.forEach(section => section.classList.remove('active'));
+
+            // Add active class to the clicked nav item and corresponding section
+            this.classList.add('active');
+            const targetSection = document.getElementById(targetId);
+            if (targetSection) {
+                targetSection.classList.add('active');
+            }
+
+            // Close the mobile menu if it's open
+            if (window.innerWidth < 768 && navLinksList.classList.contains('open')) {
+                navLinksList.classList.remove('open');
+                menuBtn.querySelector('i').classList.remove('ri-close-line');
+                menuBtn.querySelector('i').classList.add('ri-menu-line');
+            }
+        });
+    });
+
+    // Menu Button Functionality
+    menuBtn.addEventListener('click', () => {
+        navLinks.classList.toggle('open');
+    });
+
+    // Close menu when clicking outside
+    document.addEventListener('click', (e) => {
+        if (!navLinks.contains(e.target) && !menuBtn.contains(e.target) && navLinks.classList.contains('open')) {
+            navLinks.classList.remove('open');
         }
     });
+
+    // Close menu when clicking on a nav link (mobile)
+    const navItems = document.querySelectorAll('.nav-item');
+    navItems.forEach(item => {
+        item.addEventListener('click', () => {
+            if (window.innerWidth <= 768) {
+                navLinks.classList.remove('open');
+            }
+        });
+    });
+
+    // Handle window resize
+    window.addEventListener('resize', () => {
+        if (window.innerWidth > 768) {
+            navLinks.classList.remove('open');
+        }
+    });
+
+    // --- Profile Dropdown ---
+    const profileToggleElementForDropdown = document.getElementById('profile-toggle');
+    const profileDropdownMenu = document.getElementById('profile-dropdown-menu');
+
+    if (profileToggleElementForDropdown && profileDropdownMenu) {
+        profileToggleElementForDropdown.addEventListener('click', (event) => {
+            profileDropdownMenu.classList.toggle('show');
+        });
+
+        document.addEventListener('click', (event) => {
+            if (!profileToggleElementForDropdown.contains(event.target) && !profileDropdownMenu.contains(event.target)) {
+                profileDropdownMenu.classList.remove('show');
+            }
+        });
+    }
+
+    // --- Progress Circles (Simulated) ---
+    const progressElements = document.querySelectorAll('.progress');
+
+    progressElements.forEach(progress => {
+        const value = parseInt(progress.getAttribute('data-value'));
+        const radius = 40;
+        const circumference = 2 * Math.PI * radius;
+
+        progress.style.background = `conic-gradient(#4CAF50 ${value}%, #ddd ${value}%)`;
+    });
+
+    // --- Recent Interactions Filter (Basic Simulation) ---
+    const filterForm = document.querySelector('.chat-box + form');
+    const chatBox = document.querySelector('.chat-box');
+    if (filterForm && chatBox) {
+        filterForm.addEventListener('submit', function(event) {
+            event.preventDefault();
+            const filterText = this.querySelector('input[type="text"]').value.toLowerCase();
+            const messages = chatBox.querySelectorAll('.msg');
+
+            messages.forEach(msg => {
+                const textContent = msg.textContent.toLowerCase();
+                if (textContent.includes(filterText)) {
+                    msg.style.display = 'flex';
+                } else {
+                    msg.style.display = 'none';
+                }
+            });
+        });
+    }
+
+    // --- Logout ---
+    const logoutBtn = document.getElementById("logout");
+    if (logoutBtn) {
+        logoutBtn.addEventListener("click", function() {
+            window.location.href = "/logout"; // Redirect to Flask logout route
+        });
+    }
+
+    // --- Profile Picture Update ---
+    const profileToggleAvatar = document.getElementById('profile-toggle-avatar');
+    const cardAvatar = document.getElementById('profileAvatar');
+    const fileInput = document.getElementById('avatarUpload');
+
+    if (fileInput && profileToggleAvatar && cardAvatar) {
+        fileInput.addEventListener('change', (e) => {
+            const file = e.target.files[0];
+            if (file) {
+                // Validate file type
+                const allowedTypes = ['image/jpeg', 'image/png', 'image/gif'];
+                if (!allowedTypes.includes(file.type)) {
+                    showAlert('Please select a valid image file (JPEG, PNG, or GIF)', 'danger');
+                    return;
+                }
+
+                // Validate file size (max 5MB)
+                if (file.size > 5 * 1024 * 1024) {
+                    showAlert('File size should be less than 5MB', 'danger');
+                    return;
+                }
+
+                const reader = new FileReader();
+                reader.onload = (event) => {
+                    // Update both avatars immediately for better UX
+                    profileToggleAvatar.src = event.target.result;
+                    cardAvatar.src = event.target.result;
+
+                    const formData = new FormData();
+                    formData.append('avatar', file);
+
+                    fetch('/upload_avatar', {
+                        method: 'POST',
+                        body: formData,
+                    })
+                    .then(response => {
+                        if (!response.ok) {
+                            throw new Error(`HTTP error! status: ${response.status}`);
+                        }
+                        return response.json();
+                    })
+                    .then(data => {
+                        if (data.success && data.avatar_url) {
+                            const timestamp = Date.now();
+                            const newAvatarUrl = `${data.avatar_url}?cache_buster=${timestamp}`;
+                            profileToggleAvatar.src = newAvatarUrl;
+                            cardAvatar.src = newAvatarUrl;
+                            showAlert('Profile picture updated successfully!', 'success');
+                        } else {
+                            throw new Error(data.error || 'Failed to update avatar');
+                        }
+                    })
+                    .catch(error => {
+                        console.error('Error uploading avatar:', error);
+                        showAlert('Error uploading profile picture. Please try again.', 'danger');
+                        // Revert to original avatar if upload fails
+                        profileToggleAvatar.src = profileToggleAvatar.dataset.originalSrc || '/static/images/profile.jpg';
+                        cardAvatar.src = cardAvatar.dataset.originalSrc || '/static/images/profile.jpg';
+                    });
+                };
+                reader.readAsDataURL(file);
+            }
+        });
+    } else {
+        console.warn("File input or avatar images not found for profile update.");
+    }
 });
 
-//login
-document.getElementById("logout").addEventListener("click", function() {
-    window.location.href = "/logout";  // Redirect to Flask login route
-  });
+// Fetch and update dashboard data
+async function fetchDashboardData() {
+    try {
+        const response = await fetch('/dashboard_data');
+        if (!response.ok) {
+            throw new Error(`HTTP error! status: ${response.status}`);
+        }
+        const data = await response.json();
+        console.log('Fetched dashboard data:', data);
+        
+        if (!data || !data.skill_data) {
+            throw new Error('Invalid data structure received from server');
+        }
+        
+        updateCharts(data);
+        updateStats(data);
+        updateNotifications(data);
+    } catch (error) {
+        console.error('Error fetching dashboard data:', error);
+        // Show error message to user
+        const errorDiv = document.createElement('div');
+        errorDiv.className = 'alert alert-danger';
+        errorDiv.textContent = 'Failed to load dashboard data. Please refresh the page.';
+        document.querySelector('.dashboard-container').prepend(errorDiv);
+    }
+}
+
+// Update all charts with new data
+function updateCharts(data) {
+    try {
+        console.log('Updating charts with data:', data); // Debug log
+
+        // First destroy all existing charts and clear canvases
+        chartManager.destroyAll();
+        chartManager.clearAllCanvases();
+
+        // Task Progress Chart
+        const taskProgressCanvas = document.getElementById('taskProgressChart');
+        if (!taskProgressCanvas) {
+            console.error('Task Progress canvas not found');
+            return;
+        }
+
+        // Get current month and previous 5 months
+        const now = new Date();
+        const months = [];
+        for (let i = 0; i < 6; i++) {
+            const date = new Date();
+            date.setMonth(now.getMonth() - i);
+            months.unshift(date.toLocaleString('default', { month: 'short' }));
+        }
+
+        // Prepare data for the chart
+        const completedData = new Array(6).fill(0);
+        const pendingData = new Array(6).fill(0);
+        const overdueData = new Array(6).fill(0);
+
+        // Set current month's data
+        const currentMonthIndex = 5; // Last index in the array
+        completedData[currentMonthIndex] = data.task_data.completed || 0;
+        pendingData[currentMonthIndex] = data.task_data.pending || 0;
+        overdueData[currentMonthIndex] = data.task_data.overdue || 0;
+
+        // Debug log
+        console.log('Task data for chart:', {
+            months,
+            completedData,
+            pendingData,
+            overdueData,
+            rawTaskData: data.task_data
+        });
+
+        chartManager.charts.taskProgress = new Chart(taskProgressCanvas, {
+            type: 'line',
+            data: {
+                labels: months,
+                datasets: [
+                    {
+                        label: 'Completed Tasks',
+                        data: completedData,
+                        borderColor: completedData.some(count => count > 0) ? '#4CAF50' : '#E0E0E0',
+                        tension: 0.4,
+                        fill: true,
+                        backgroundColor: completedData.some(count => count > 0) ? 'rgba(76, 175, 80, 0.1)' : 'rgba(224, 224, 224, 0.1)',
+                        hidden: false
+                    },
+                    {
+                        label: 'In Progress Tasks',
+                        data: pendingData,
+                        borderColor: pendingData.some(count => count > 0) ? '#2196F3' : '#E0E0E0',
+                        tension: 0.4,
+                        fill: true,
+                        backgroundColor: pendingData.some(count => count > 0) ? 'rgba(33, 150, 243, 0.1)' : 'rgba(224, 224, 224, 0.1)',
+                        hidden: true
+                    },
+                    {
+                        label: 'Overdue Tasks',
+                        data: overdueData,
+                        borderColor: overdueData.some(count => count > 0) ? '#F44336' : '#E0E0E0',
+                        tension: 0.4,
+                        fill: true,
+                        backgroundColor: overdueData.some(count => count > 0) ? 'rgba(244, 67, 54, 0.1)' : 'rgba(224, 224, 224, 0.1)',
+                        hidden: true
+                    }
+                ]
+            },
+            options: {
+                responsive: true,
+                maintainAspectRatio: false,
+                plugins: {
+                    legend: {
+                        position: 'top',
+                        labels: {
+                            color: '#333333'
+                        }
+                    },
+                    tooltip: {
+                        backgroundColor: 'rgba(0, 0, 0, 0.8)',
+                        titleColor: '#ffffff',
+                        bodyColor: '#ffffff',
+                        callbacks: {
+                            label: function(context) {
+                                return `${context.dataset.label}: ${context.raw}`;
+                            }
+                        }
+                    }
+                },
+                scales: {
+                    y: {
+                        beginAtZero: true,
+                        ticks: {
+                            stepSize: 1,
+                            color: '#333333'
+                        },
+                        grid: {
+                            color: 'rgba(0, 0, 0, 0.1)'
+                        }
+                    },
+                    x: {
+                        ticks: {
+                            color: '#333333'
+                        },
+                        grid: {
+                            color: 'rgba(0, 0, 0, 0.1)'
+                        }
+                    }
+                }
+            }
+        });
+
+        // Skill Development Chart
+        const skillDevCanvas = document.getElementById('skillProgressChart');
+        if (!skillDevCanvas) {
+            console.error('Skill Development canvas not found');
+            return;
+        }
+
+        const skillData = data.skill_data;
+        console.log('Raw skill data:', skillData);
+        
+        if (!skillData) {
+            console.error('Skill data is missing');
+            return;
+        }
+
+        const completed = parseInt(skillData.completed) || 0;
+        const inProgress = parseInt(skillData.in_progress) || 0;
+        
+        console.log('Parsed skill counts:', { completed, inProgress });
+        
+        const totalSkills = completed + inProgress;
+        console.log('Total skills:', totalSkills);
+
+        try {
+            if (chartManager.charts.skillDev) {
+                chartManager.charts.skillDev.destroy();
+            }
+
+            chartManager.charts.skillDev = new Chart(skillDevCanvas, {
+                type: 'doughnut',
+                data: {
+                    labels: ['Completed', 'In Progress'],
+                    datasets: [{
+                        data: [completed, inProgress],
+                        backgroundColor: [
+                            completed > 0 ? '#FF9800' : '#E0E0E0',
+                            inProgress > 0 ? '#9C27B0' : '#E0E0E0'
+                        ],
+                        borderWidth: 1,
+                        borderColor: '#ffffff'
+                    }]
+                },
+                options: {
+                    responsive: true,
+                    maintainAspectRatio: false,
+                    cutout: '70%',
+                    plugins: {
+                        legend: {
+                            position: 'right',
+                            labels: {
+                                padding: 20,
+                                font: {
+                                    size: 12
+                                },
+                                color: '#333333'
+                            }
+                        },
+                        tooltip: {
+                            callbacks: {
+                                label: function(context) {
+                                    const value = context.raw;
+                                    const percentage = totalSkills > 0 ? Math.round((value / totalSkills) * 100) : 0;
+                                    return `${context.label}: ${value} (${percentage}%)`;
+                                }
+                            },
+                            backgroundColor: 'rgba(0, 0, 0, 0.8)',
+                            titleColor: '#ffffff',
+                            bodyColor: '#ffffff'
+                        }
+                    }
+                }
+            });
+
+            // Update the skill completion percentage in the stats
+            const skillCompletionElements = document.querySelectorAll('.stat-value');
+            skillCompletionElements.forEach(element => {
+                if (element.textContent.includes('%')) {
+                    element.textContent = `${skillData.completion_percentage}%`;
+                }
+            });
+
+            // Update the progress circle for skills
+            const progressCircles = document.querySelectorAll('.progress');
+            progressCircles.forEach(circle => {
+                if (circle.nextElementSibling && circle.nextElementSibling.textContent.includes('developed')) {
+                    circle.style.background = `conic-gradient(#8a2be2 ${skillData.completion_percentage}%, #ddd ${skillData.completion_percentage}%)`;
+                }
+            });
+
+            // Update the skill counts in the dashboard cards
+            const skillCountElements = document.querySelectorAll('.card h2');
+            skillCountElements.forEach(element => {
+                if (element.nextElementSibling && element.nextElementSibling.textContent.includes('Developed Skills')) {
+                    element.textContent = completed;
+                }
+            });
+
+            // Update the skill stats in the skill development section
+            const skillStatElements = document.querySelectorAll('.skill-stats .stat-value');
+            if (skillStatElements.length >= 2) {
+                skillStatElements[0].textContent = completed; // Mastered
+                skillStatElements[1].textContent = inProgress; // In Progress
+            }
+
+        } catch (chartError) {
+            console.error('Error creating skill development chart:', chartError);
+        }
+
+        // Network Growth Chart
+        const networkGrowthCanvas = document.getElementById('networkGrowthChart');
+        if (!networkGrowthCanvas) {
+            console.error('Network Growth canvas not found');
+            return;
+        }
+
+        chartManager.charts.networkGrowth = new Chart(networkGrowthCanvas, {
+            type: 'bar',
+            data: {
+                labels: ['Total Contacts', 'New This Month', 'Meetings', 'Follow-ups'],
+                datasets: [{
+                    label: 'Network Statistics',
+                    data: [
+                        data.network_data.total_contacts,
+                        data.network_data.new_contacts,
+                        data.network_data.meetings_attended,
+                        data.network_data.follow_ups
+                    ],
+                    backgroundColor: [
+                        data.network_data.total_contacts > 0 ? '#00BCD4' : '#E0E0E0',
+                        data.network_data.new_contacts > 0 ? '#E91E63' : '#E0E0E0',
+                        data.network_data.meetings_attended > 0 ? '#8BC34A' : '#E0E0E0',
+                        data.network_data.follow_ups > 0 ? '#795548' : '#E0E0E0'
+                    ],
+                    borderColor: '#ffffff',
+                    borderWidth: 1
+                }]
+            },
+            options: {
+                responsive: true,
+                maintainAspectRatio: false,
+                plugins: {
+                    legend: {
+                        display: false
+                    },
+                    tooltip: {
+                        backgroundColor: 'rgba(0, 0, 0, 0.8)',
+                        titleColor: '#ffffff',
+                        bodyColor: '#ffffff'
+                    }
+                },
+                scales: {
+                    y: {
+                        beginAtZero: true,
+                        ticks: {
+                            color: '#333333'
+                        },
+                        grid: {
+                            color: 'rgba(0, 0, 0, 0.1)'
+                        }
+                    },
+                    x: {
+                        ticks: {
+                            color: '#333333'
+                        },
+                        grid: {
+                            color: 'rgba(0, 0, 0, 0.1)'
+                        }
+                    }
+                }
+            }
+        });
+    } catch (error) {
+        console.error('Error updating charts:', error);
+        // Show error message to user
+        const errorDiv = document.createElement('div');
+        errorDiv.className = 'alert alert-danger';
+        errorDiv.textContent = 'Failed to update charts. Please refresh the page.';
+        document.querySelector('.dashboard-container').prepend(errorDiv);
+    }
+}
+
+// Update statistics display
+function updateStats(data) {
+    // Update task stats
+    document.querySelector('.stat-item:nth-child(1) .stat-value').textContent = data.task_data.completed;
+    document.querySelector('.stat-item:nth-child(2) .stat-value').textContent = data.task_data.pending;
+    document.querySelector('.stat-item:nth-child(3) .stat-value').textContent = data.task_data.overdue;
+
+    // Update progress circles
+    const progressElements = document.querySelectorAll('.progress');
+    progressElements[0].style.background = `conic-gradient(#8a2be2 ${data.task_data.completion_percentage}%, #ddd ${data.task_data.completion_percentage}%)`;
+    progressElements[1].style.background = `conic-gradient(#8a2be2 ${data.skill_data.completion_percentage}%, #ddd ${data.skill_data.completion_percentage}%)`;
+    progressElements[2].style.background = `conic-gradient(#8a2be2 ${data.network_data.growth_percentage}%, #ddd ${data.network_data.growth_percentage}%)`;
+
+    // Update progress labels
+    document.querySelectorAll('.label')[0].textContent = `${data.task_data.completion_percentage}% completed`;
+    document.querySelectorAll('.label')[1].textContent = `${data.skill_data.completion_percentage}% developed`;
+    document.querySelectorAll('.label')[2].textContent = `${data.network_data.growth_percentage}% growth`;
+
+    // Update notifications
+    updateNotifications(data);
+}
+
+function updateNotifications(data) {
+    // Update main notifications container
+    const notificationsContainer = document.querySelector('.notifications-container');
+    if (notificationsContainer) {
+        notificationsContainer.innerHTML = '';
+    }
+
+    // Update notification dropdown
+    const notificationList = document.querySelector('.notification-list');
+    const notificationBadge = document.querySelector('.notification-link .badge');
+    if (notificationList) {
+        notificationList.innerHTML = '';
+    }
+
+    // Create notifications array
+    const notifications = [];
+
+    // Add pending tasks notifications
+    if (data.task_data.pending_tasks_list && data.task_data.pending_tasks_list.length > 0) {
+        data.task_data.pending_tasks_list.forEach(task => {
+            notifications.push({
+                title: 'Pending Task',
+                message: task.name,
+                type: 'pending',
+                icon: 'fas fa-clock'
+            });
+        });
+    }
+
+    // Add in-progress skills notifications
+    if (data.skill_data.in_progress_skills_list && data.skill_data.in_progress_skills_list.length > 0) {
+        data.skill_data.in_progress_skills_list.forEach(skill => {
+            notifications.push({
+                title: 'In Progress Skill',
+                message: skill.name,
+                type: 'in_progress',
+                icon: 'fas fa-spinner fa-spin'
+            });
+        });
+    }
+
+    // Add upcoming meetings notifications
+    if (data.network_data.upcoming_meetings && data.network_data.upcoming_meetings.length > 0) {
+        data.network_data.upcoming_meetings.forEach(meeting => {
+            notifications.push({
+                title: 'Upcoming Meeting',
+                message: `${meeting.name} - ${meeting.next_meeting}`,
+                type: 'meeting',
+                icon: 'fas fa-calendar-alt'
+            });
+        });
+    }
+
+    // Update notification count
+    if (notificationBadge) {
+        notificationBadge.textContent = notifications.length;
+        notificationBadge.style.display = notifications.length > 0 ? 'flex' : 'none';
+    }
+
+    // Display notifications in main container
+    if (notificationsContainer) {
+        if (notifications.length > 0) {
+            notifications.forEach(notification => {
+                const notificationElement = createNotification(
+                    notification.title,
+                    notification.message,
+                    notification.type
+                );
+                notificationsContainer.appendChild(notificationElement);
+            });
+        } else {
+            const noNotifications = createNotification(
+                'All Caught Up!',
+                'You have no pending items. Great job!',
+                'success'
+            );
+            notificationsContainer.appendChild(noNotifications);
+        }
+    }
+
+    // Display notifications in dropdown
+    if (notificationList) {
+        if (notifications.length > 0) {
+            notifications.forEach(notification => {
+                const notificationItem = document.createElement('div');
+                notificationItem.className = 'notification-item';
+                
+                const icon = document.createElement('i');
+                icon.className = notification.icon;
+                
+                const content = document.createElement('div');
+                content.className = 'notification-content';
+                
+                const title = document.createElement('h6');
+                title.textContent = notification.title;
+                
+                const message = document.createElement('p');
+                message.textContent = notification.message;
+                
+                content.appendChild(title);
+                content.appendChild(message);
+                notificationItem.appendChild(icon);
+                notificationItem.appendChild(content);
+                
+                notificationList.appendChild(notificationItem);
+            });
+        } else {
+            const noNotifications = document.createElement('div');
+            noNotifications.className = 'notification-item';
+            noNotifications.innerHTML = `
+                <i class="fas fa-check-circle text-success"></i>
+                <div class="notification-content">
+                    <h6>All Caught Up!</h6>
+                    <p>No pending items at the moment.</p>
+                </div>
+            `;
+            notificationList.appendChild(noNotifications);
+        }
+    }
+}
+
+function createNotification(title, message, type) {
+    const notification = document.createElement('div');
+    notification.className = `notification ${type}`;
+    
+    const icon = document.createElement('i');
+    icon.className = getIconClass(type);
+    
+    const content = document.createElement('div');
+    content.className = 'notification-content';
+    
+    const notificationTitle = document.createElement('h4');
+    notificationTitle.textContent = title;
+    notificationTitle.style.color = '#000000'; // Black color for title
+    
+    const notificationMessage = document.createElement('p');
+    notificationMessage.textContent = message;
+    notificationMessage.style.color = '#000000'; // Black color for message
+    
+    content.appendChild(notificationTitle);
+    content.appendChild(notificationMessage);
+    
+    notification.appendChild(icon);
+    notification.appendChild(content);
+    
+    return notification;
+}
+
+function getIconClass(type) {
+    switch(type) {
+        case 'pending':
+            return 'fas fa-clock text-warning';
+        case 'in_progress':
+            return 'fas fa-spinner fa-spin text-primary';
+        case 'meeting':
+            return 'fas fa-calendar-alt text-info';
+        case 'overdue':
+            return 'fas fa-exclamation-circle text-danger';
+        case 'success':
+            return 'fas fa-check-circle text-success';
+        default:
+            return 'fas fa-info-circle text-info';
+    }
+}
+
+// Setup navigation between sections
+function setupNavigation() {
+    const navItems = document.querySelectorAll('.nav-item');
+    const sections = document.querySelectorAll('.dashboard-section');
+
+    navItems.forEach(item => {
+        item.addEventListener('click', function(e) {
+            e.preventDefault();
+            const target = this.getAttribute('data-target');
+
+            // Update active states
+            navItems.forEach(nav => nav.classList.remove('active'));
+            this.classList.add('active');
+
+            // Show target section
+            sections.forEach(section => {
+                section.classList.remove('active');
+                if (section.id === target) {
+                    section.classList.add('active');
+                }
+            });
+        });
+    });
+}
+
+// Setup menu links in content sections
+function setupMenuLinks() {
+    const menuLinks = document.querySelectorAll('.menu-link a');
+    
+    menuLinks.forEach(link => {
+        link.addEventListener('click', function(e) {
+            e.preventDefault();
+            const target = this.getAttribute('data-target');
+            
+            // Update active states
+            document.querySelectorAll('.nav-item').forEach(nav => {
+                nav.classList.remove('active');
+                if (nav.getAttribute('data-target') === target) {
+                    nav.classList.add('active');
+                }
+            });
+
+            // Show target section
+            document.querySelectorAll('.dashboard-section').forEach(section => {
+                section.classList.remove('active');
+                if (section.id === target) {
+                    section.classList.add('active');
+                }
+            });
+        });
+    });
+}
+
+// Add hover effects to stat items
+document.querySelectorAll('.stat-item').forEach(item => {
+    item.addEventListener('mouseenter', function() {
+        this.style.transform = 'translateY(-5px)';
+    });
+    
+    item.addEventListener('mouseleave', function() {
+        this.style.transform = 'translateY(0)';
+    });
+});

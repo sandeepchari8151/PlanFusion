@@ -3,50 +3,87 @@ document.addEventListener("DOMContentLoaded", function () {
     const sections = document.querySelectorAll(".dashboard-section");
     const taskInput = document.getElementById("taskInput");
     const taskList = document.getElementById("taskList");
+    const navLinks = document.querySelector(".nav_links");
+    const addTaskBtn = document.getElementById("addTaskBtn");
 
+    let selectedPriority = "";
     let selectedDueDate = "";
     let selectedReminder = "";
-    let selectedRepeat = "";
+    let selectedLabel = "";
     let completedTasks = 0, remainingTasks = 0;
 
-    // 🛠️ Reset dropdowns on page load (fix for reload issue)
+    // 🛠️ Initialize page
     resetDropdowns();
+    updateCurrentDate();
+    fetchTasks();
+
+    // Set up task input event listeners
+    if (taskInput) {
+        taskInput.addEventListener("keypress", function (e) {
+            if (e.key === "Enter" && taskInput.value.trim() !== "") {
+                handleAddTask();
+            }
+        });
+    }
+
+    if (addTaskBtn) {
+        addTaskBtn.addEventListener("click", function() {
+            if (taskInput.value.trim() !== "") {
+                handleAddTask();
+            }
+        });
+    }
 
     // 🔹 Sidebar Navigation
-    document.querySelector(".nav_links").addEventListener("click", function (e) {
-        if (e.target.matches(".nav-item")) {
-            let target = e.target.getAttribute("data-target");
+    if (navLinks) {
+        navLinks.addEventListener("click", function (e) {
+            if (e.target.matches(".nav-item")) {
+                let target = e.target.getAttribute("data-target");
+                const targetSection = document.getElementById(target);
 
-            sections.forEach(section => section.classList.remove("active"));
-            document.getElementById(target).classList.add("active");
-
-            highlightActiveNavItem(e.target);
-        }
-    });
+                if (targetSection) {
+                    sections.forEach(section => {
+                        if (section) section.classList.remove("active");
+                    });
+                    targetSection.classList.add("active");
+                    highlightActiveNavItem(e.target);
+                }
+            }
+        });
+    }
 
     // 🔹 Highlight Active Nav Item
     function highlightActiveNavItem(activeLink) {
+        if (!activeLink) return;
+        
         const navLinks = document.querySelectorAll(".nav-item");
-        navLinks.forEach(link => link.classList.remove("active"));
+        navLinks.forEach(link => {
+            if (link) link.classList.remove("active");
+        });
         activeLink.classList.add("active");
     }
 
     // 🔹 Dropdown Menu Functionality
-    document.querySelectorAll(".dropdown-toggle").forEach(button => {
-        button.addEventListener("click", function (event) {
-            event.stopPropagation();
-            let dropdownId = this.getAttribute("data-dropdown");
-            let dropdownMenu = document.getElementById(dropdownId);
+    const dropdownToggles = document.querySelectorAll(".dropdown-toggle");
+    if (dropdownToggles.length > 0) {
+        dropdownToggles.forEach(button => {
+            button.addEventListener("click", function (event) {
+                event.stopPropagation();
+                let dropdownId = this.getAttribute("data-dropdown");
+                let dropdownMenu = document.getElementById(dropdownId);
 
-            document.querySelectorAll(".dropdown-menu").forEach(menu => {
-                if (menu !== dropdownMenu) {
-                    menu.classList.remove("show");
+                if (dropdownMenu) {
+                    document.querySelectorAll(".dropdown-menu").forEach(menu => {
+                        if (menu && menu !== dropdownMenu) {
+                            menu.classList.remove("show");
+                        }
+                    });
+
+                    dropdownMenu.classList.toggle("show");
                 }
             });
-
-            dropdownMenu.classList.toggle("show");
         });
-    });
+    }
 
     document.addEventListener("click", function () {
         document.querySelectorAll(".dropdown-menu").forEach(menu => menu.classList.remove("show"));
@@ -83,22 +120,14 @@ document.addEventListener("DOMContentLoaded", function () {
                             selectedDueDate = formattedDate;
                         } else if (dropdown === "reminderDropdown") {
                             selectedReminder = formattedDate;
-                        } else if (dropdown === "repeatDropdown") {
-                            selectedRepeat = formattedDate;
+                        } else if (dropdown === "priorityDropdown") {
+                            selectedPriority = this.textContent.trim();
+                        } else if (dropdown === "labelDropdown") {
+                            selectedLabel = this.textContent.trim();
                         }
                     }
                     document.body.removeChild(inputField);
                 });
-            } else if (this.textContent.includes("Today")) {
-                const today = new Date();
-                const formattedToday = today.toLocaleString();
-                button.innerHTML = `<i class="ri-calendar-line"></i> <span>${formattedToday}</span>`;
-                button.classList.add("selected");
-                if (dropdown === "dueDropdown") {
-                    selectedDueDate = formattedToday;
-                } else if (dropdown === "reminderDropdown") {
-                    selectedReminder = formattedToday;
-                }
             } else {
                 let selectedText = this.textContent.trim();
                 button.innerHTML = `<i class="ri-calendar-line"></i> <span>${selectedText}</span>`;
@@ -108,197 +137,78 @@ document.addEventListener("DOMContentLoaded", function () {
                     selectedDueDate = selectedText;
                 } else if (dropdown === "reminderDropdown") {
                     selectedReminder = selectedText;
-                } else if (dropdown === "repeatDropdown") {
-                    selectedRepeat = selectedText;
+                } else if (dropdown === "priorityDropdown") {
+                    selectedPriority = selectedText;
+                } else if (dropdown === "labelDropdown") {
+                    selectedLabel = selectedText;
                 }
             }
             this.closest(".dropdown-menu").classList.remove("show");
         });
     });
 
-    // 🔹 Add Task
-    document.getElementById("addTaskBtn").addEventListener("click", function () {
-        const taskText = taskInput.value.trim();
-        if (taskText === "") return;
-
-        const taskItem = document.createElement("li");
-        taskItem.classList.add("task-item");
-
-        let dueText = selectedDueDate || "📅 Due";
-        let reminderText = selectedReminder || "⏰ Reminder";
-        let repeatText = selectedRepeat || "🔁 Repeat";
-
-        taskItem.innerHTML = `
-            <div class="task-details">
-                <span class="task-name">${taskText}</span>
-                <div class="task-meta">
-                    <span class="task-due editable-field">${dueText}</span> |
-                    <span class="task-reminder editable-field">${reminderText}</span> |
-                    <span class="task-repeat editable-field">${repeatText}</span>
-                </div>
-                <button class="task-complete-btn">✅ Mark as Complete</button>
-                <i class="ri-star-line task-star"></i>
-                <i class="ri-delete-bin-line task-delete"></i>
-            </div>
-        `;
-
-        taskList.appendChild(taskItem);
-        taskInput.value = "";
-        resetDropdowns();
-
-        remainingTasks++;
-        updateCounts();
-    });
-
-    taskList.addEventListener("click", function (event) {
-        let target = event.target;
-
-        if (target.classList.contains("task-name")) {
-            let input = document.createElement("input");
-            input.type = "text";
-            input.value = target.textContent.trim();
-            input.classList.add("edit-input");
-
-            target.replaceWith(input);
-            input.focus();
-
-            function saveEdit() {
-                let newTaskName = document.createElement("span");
-                newTaskName.classList.add("task-name");
-                newTaskName.textContent = input.value.trim() || "Untitled Task";
-                input.replaceWith(newTaskName);
-            }
-
-            input.addEventListener("blur", saveEdit);
-            input.addEventListener("keydown", (event) => {
-                if (event.key === "Enter") saveEdit();
-            });
-        }
-
-        if (target.classList.contains("editable-field")) {
-            let type = target.classList.contains("task-due") ? "due" :
-                target.classList.contains("task-reminder") ? "reminder" : "repeat";
-
-            let dropdown = document.createElement("select");
-            dropdown.classList.add("edit-dropdown");
-
-            let options = {
-                "due": ["Today", "Tomorrow", "Next Week", "Pick a date"],
-                "reminder": ["In 1 Hour", "Later Today", "Tomorrow", "Pick a date"],
-                "repeat": ["Daily", "Weekly", "Monthly", "Custom"]
-            }[type];
-
-            options.forEach(option => {
-                let optionElement = document.createElement("option");
-                optionElement.value = option;
-                optionElement.textContent = option;
-                dropdown.appendChild(optionElement);
-            });
-
-            target.replaceWith(dropdown);
-            dropdown.focus();
-
-            function saveEdit() {
-                let newValue = dropdown.value;
-                let newSpan = document.createElement("span");
-                newSpan.classList.add("editable-field");
-
-                if (type === "due") {
-                    newSpan.textContent = `📅 ${newValue}`;
-                    newSpan.classList.add("task-due");
-                } else if (type === "reminder") {
-                    newSpan.textContent = `⏰ ${newValue}`;
-                    newSpan.classList.add("task-reminder");
-                } else {
-                    newSpan.textContent = `🔁 ${newValue}`;
-                    newSpan.classList.add("task-repeat");
-                }
-
-                if (newValue.includes("Pick")) {
-                    let input = document.createElement("input");
-                    input.type = type === "due" ? "date" : type === "reminder" ? "datetime-local" : "text";
-                    input.classList.add("edit-input");
-
-                    dropdown.replaceWith(input);
-                    input.focus();
-
-                    input.addEventListener("change", function () {
-                        newSpan.textContent = (type === "due" ? "📅 " : type === "reminder" ? "⏰ " : "🔁 ") + input.value;
-                        input.replaceWith(newSpan);
-                    });
-
-                    input.addEventListener("blur", function () {
-                        input.replaceWith(newSpan);
-                    });
-
-                    return;
-                }
-                dropdown.replaceWith(newSpan);
-            }
-            dropdown.addEventListener("change", saveEdit);
-            dropdown.addEventListener("blur", saveEdit);
-        }
-
-        if (target.classList.contains("task-complete-btn")) {
-            let taskItem = target.closest(".task-item");
-            taskItem.classList.toggle("completed");
-
-            if (taskItem.classList.contains("completed")) {
-                target.textContent = "🔄 Undo";
-                completedTasks++;
-                remainingTasks--;
-            } else {
-                target.textContent = "✅ Mark as Complete";
-                completedTasks--;
-                remainingTasks++;
-            }
-            updateCounts();
-        }
-
-        if (target.classList.contains("task-delete")) {
+    // 🔹 Enhanced Task List Event Handling
+    if (taskList) {
+        taskList.addEventListener("click", function (event) {
+            let target = event.target;
             let taskItem = target.closest(".task-item");
 
-            if (taskItem.classList.contains("completed")) {
-                completedTasks--;
-            } else {
-                remainingTasks--;
+            if (!taskItem) return;
+
+            // Task Checkbox
+            if (target.classList.contains("task-checkbox")) {
+                taskItem.classList.toggle("completed");
+                updateTaskCounts();
             }
 
-            taskItem.remove();
-            updateCounts();
-        }
-
-        if (target.classList.contains("task-star")) {
-            let taskItem = target.closest(".task-item");
-            taskItem.classList.toggle('important-task');
-
-            if (taskItem.classList.contains('important-task')) {
-                target.classList.replace("ri-star-line", "ri-star-fill");
-            } else {
-                target.classList.replace("ri-star-fill", "ri-star-line");
+            // Task Delete
+            if (target.classList.contains("delete-btn")) {
+                taskItem.remove();
+                updateTaskCounts();
             }
-        }
-    });
-
-    function updateCounts() {
-        document.getElementById("completedTasksCount").textContent = completedTasks;
-        document.getElementById("remainingTasksCount").textContent = remainingTasks;
+        });
     }
 
+    // 🔹 Update Task Counts - Consolidated function
+    function updateTaskCounts() {
+        const totalTasks = document.querySelectorAll('.task-item').length;
+        const completedTasks = document.querySelectorAll('.task-checkbox:checked').length;
+        const pendingTasks = totalTasks - completedTasks;
+
+        // Update task counts in the task list section
+        const totalElement = document.querySelector('.total-tasks');
+        const completedElement = document.querySelector('.completed-tasks');
+        const pendingElement = document.querySelector('.pending-tasks');
+
+        if (totalElement) totalElement.textContent = totalTasks;
+        if (completedElement) completedElement.textContent = completedTasks;
+        if (pendingElement) pendingElement.textContent = pendingTasks;
+
+        // Update counts in the task header
+        const completedCount = document.getElementById("completedTasksCount");
+        const remainingCount = document.getElementById("remainingTasksCount");
+        
+        if (completedCount) completedCount.textContent = completedTasks;
+        if (remainingCount) remainingCount.textContent = pendingTasks;
+    }
+
+    // 🔹 Reset Dropdowns
     function resetDropdowns() {
+        selectedPriority = "";
         selectedDueDate = "";
         selectedReminder = "";
-        selectedRepeat = "";
+        selectedLabel = "";
 
         document.querySelectorAll(".dropdown-toggle").forEach(button => {
-            let iconClass = button.querySelector("i").className;
+            const iconClass = button.querySelector("i").className;
             button.innerHTML = `<i class="${iconClass}"></i>`;
             button.classList.remove("selected");
         });
     }
 
+    // 🔹 Format Date/Time
     function formatDateTime(dateTime) {
-        let dateObj = new Date(dateTime);
+        const dateObj = new Date(dateTime);
         if (isNaN(dateObj)) return "Invalid Date";
         return dateObj.toLocaleString();
     }
@@ -319,14 +229,252 @@ document.addEventListener("DOMContentLoaded", function () {
             default: return "checkbox-line";
         }
     }
-});
-document.addEventListener("DOMContentLoaded", function () {
+
+    // Function to fetch tasks from the backend
+    async function fetchTasks() {
+        try {
+            const response = await fetch('/api/dashboard/tasks');
+            if (!response.ok) {
+                throw new Error('Failed to fetch tasks');
+            }
+            const tasks = await response.json();
+            renderTasks(tasks);
+        } catch (error) {
+            console.error('Error fetching tasks:', error);
+            showNotification('Error loading tasks', 'error');
+        }
+    }
+
+    // Function to add a new task
+    async function addNewTask(taskData) {
+        try {
+            const response = await fetch('/api/dashboard/tasks', {
+                method: 'POST',
+                headers: {
+                    'Content-Type': 'application/json',
+                },
+                body: JSON.stringify(taskData)
+            });
+
+            if (!response.ok) {
+                throw new Error('Failed to add task');
+            }
+
+            const newTask = await response.json();
+            renderTasks([newTask], true); // true indicates append mode
+            return newTask;
+        } catch (error) {
+            console.error('Error adding task:', error);
+            showNotification('Error adding task', 'error');
+            return null;
+        }
+    }
+
+    // Function to update a task
+    async function updateTask(taskId, updateData) {
+        try {
+            const response = await fetch(`/api/dashboard/tasks/${taskId}`, {
+                method: 'PUT',
+                headers: {
+                    'Content-Type': 'application/json',
+                },
+                body: JSON.stringify(updateData)
+            });
+
+            if (!response.ok) {
+                throw new Error('Failed to update task');
+            }
+
+            const updatedTask = await response.json();
+            renderTasks([updatedTask], false, true); // false for not append, true for update mode
+            return updatedTask;
+        } catch (error) {
+            console.error('Error updating task:', error);
+            showNotification('Error updating task', 'error');
+            return null;
+        }
+    }
+
+    // Function to delete a task
+    async function deleteTask(taskId) {
+        try {
+            const response = await fetch(`/api/dashboard/tasks/${taskId}`, {
+                method: 'DELETE'
+            });
+
+            if (!response.ok) {
+                throw new Error('Failed to delete task');
+            }
+
+            const taskElement = document.querySelector(`[data-task-id="${taskId}"]`);
+            if (taskElement) {
+                taskElement.remove();
+                updateTaskCounts();
+            }
+            showNotification('Task deleted successfully', 'success');
+        } catch (error) {
+            console.error('Error deleting task:', error);
+            showNotification('Error deleting task', 'error');
+        }
+    }
+
+    // Function to render tasks
+    function renderTasks(tasks, append = false, update = false) {
+        const taskList = document.querySelector('.task-list');
+        if (!taskList) return;
+
+        if (!append && !update) {
+            taskList.innerHTML = '';
+        }
+
+        tasks.forEach(task => {
+            if (update) {
+                const existingTask = document.querySelector(`[data-task-id="${task._id}"]`);
+                if (existingTask) {
+                    existingTask.replaceWith(createTaskElement(task));
+                }
+            } else {
+                taskList.appendChild(createTaskElement(task));
+            }
+        });
+
+        updateTaskCounts();
+    }
+
+    // Function to create task element
+    function createTaskElement(task) {
+        const taskElement = document.createElement('div');
+        taskElement.className = 'task-item';
+        taskElement.setAttribute('data-task-id', task._id);
+
+        const taskContent = `
+            <div class="task-content">
+                <input type="checkbox" class="task-checkbox" ${task.status === 'completed' ? 'checked' : ''}>
+                <span class="task-name ${task.status === 'completed' ? 'completed' : ''}">${task.name}</span>
+            </div>
+            <div class="task-meta">
+                ${task.priority ? `<span class="task-priority ${task.priority.toLowerCase()}">${task.priority}</span>` : ''}
+                ${task.due_date ? `<span class="task-due-date"><i class="fas fa-calendar"></i> ${task.due_date}</span>` : ''}
+                ${task.reminder ? `<span class="task-reminder"><i class="fas fa-bell"></i> ${task.reminder}</span>` : ''}
+                ${task.label ? `<span class="task-label"><i class="fas fa-tag"></i> ${task.label}</span>` : ''}
+            </div>
+            <div class="task-actions">
+                <button class="complete-task-btn ${task.status === 'completed' ? 'completed' : ''}" title="${task.status === 'completed' ? 'Mark as incomplete' : 'Mark as complete'}">complete
+                    <i class="fas ${task.status === 'completed' ? 'fa-undo' : 'fa-check'}"></i>
+                </button>
+                <button class="edit-task-btn" title="Edit task">edit
+                    <i class="fas fa-edit"></i>
+                </button>
+                <button class="delete-task-btn" title="Delete task">delete
+                    <i class="fas fa-trash"></i>
+                </button>
+            </div>
+        `;
+
+        taskElement.innerHTML = taskContent;
+
+        // Add event listeners
+        const checkbox = taskElement.querySelector('.task-checkbox');
+        const completeBtn = taskElement.querySelector('.complete-task-btn');
+        
+        checkbox.addEventListener('change', () => {
+            const newStatus = checkbox.checked ? 'completed' : 'pending';
+            updateTask(task._id, { status: newStatus });
+        });
+
+        completeBtn.addEventListener('click', () => {
+            const newStatus = task.status === 'completed' ? 'pending' : 'completed';
+            updateTask(task._id, { status: newStatus });
+        });
+
+        const deleteBtn = taskElement.querySelector('.delete-task-btn');
+        deleteBtn.addEventListener('click', () => {
+            if (confirm('Are you sure you want to delete this task?')) {
+                deleteTask(task._id);
+            }
+        });
+
+        const editBtn = taskElement.querySelector('.edit-task-btn');
+        editBtn.addEventListener('click', () => {
+            const taskName = taskElement.querySelector('.task-name');
+            const currentName = taskName.textContent;
+            taskName.innerHTML = `
+                <input type="text" class="edit-input" value="${currentName}">
+                <button class="save-edit-btn"><i class="fas fa-save"></i></button>
+            `;
+            
+            const saveBtn = taskName.querySelector('.save-edit-btn');
+            const editInput = taskName.querySelector('.edit-input');
+            
+            editInput.focus();
+            
+            saveBtn.addEventListener('click', () => {
+                const newName = editInput.value.trim();
+                if (newName) {
+                    updateTask(task._id, { name: newName });
+                }
+            });
+            
+            editInput.addEventListener('keypress', (e) => {
+                if (e.key === 'Enter') {
+                    const newName = editInput.value.trim();
+                    if (newName) {
+                        updateTask(task._id, { name: newName });
+                    }
+                }
+            });
+        });
+
+        return taskElement;
+    }
+
+    // Function to show notifications
+    function showNotification(message, type = 'info') {
+        // Implement your notification system here
+        console.log(`${type}: ${message}`);
+    }
+
+    // Function to update current date
     function updateCurrentDate() {
         const now = new Date();
         const options = { weekday: "long", month: "long", day: "numeric", year: "numeric" };
         const formattedDate = now.toLocaleDateString(undefined, options);
-        document.getElementById("currentDate").textContent = formattedDate;
+        const currentDateElement = document.getElementById("currentDate");
+        if (currentDateElement) {
+            currentDateElement.textContent = formattedDate;
+        }
     }
 
-    updateCurrentDate();
+    // Function to handle adding a new task
+    async function handleAddTask() {
+        const taskText = taskInput.value.trim();
+        if (!taskText) return;
+
+        const taskData = {
+            name: taskText,
+            status: 'pending'
+        };
+
+        // Add optional fields if they are selected
+        if (selectedPriority) {
+            taskData.priority = selectedPriority;
+        }
+        if (selectedDueDate) {
+            taskData.due_date = selectedDueDate;
+        }
+        if (selectedReminder) {
+            taskData.reminder = selectedReminder;
+        }
+        if (selectedLabel) {
+            taskData.label = selectedLabel;
+        }
+
+        const newTask = await addNewTask(taskData);
+        if (newTask) {
+            taskInput.value = '';
+            resetDropdowns();
+            showNotification('Task added successfully', 'success');
+            await fetchTasks(); // Refresh the task list
+        }
+    }
 });

@@ -1,616 +1,940 @@
-// skills
-// skills (Merged Features: Roadmaps, Reminders, Completion, Dynamic Calendar, Grid/List, Sort, Pre-Typed, API)
+// external.js
 
-async function setupSkillsSection() {
+document.addEventListener("DOMContentLoaded", async function () {
     const skillInput = document.getElementById("newSkill");
+    const learningSourceInput = document.getElementById("learningSource");
+    const startDateInput = document.getElementById("startDate");
+    const expectedEndDateInput = document.getElementById("expectedEndDate");
     const skillList = document.getElementById("skillList");
     const addSkillButton = document.getElementById("addSkill");
-    const calendarContainer = document.getElementById("calendarContainer");
-    const viewToggle = document.getElementById("viewToggle");
-    const sortToggle = document.getElementById("sortToggle");
-    const skillSuggestions = {
-        "Programming Languages": ["Python", "JavaScript", "C++", "Java", "C", "C#", "HTML", "CSS", "TypeScript", "Go", "Rust", "Swift", "Kotlin", "PHP", "Ruby", "Perl", "Shell Scripting", "SQL", "R"],
-        "Drawing": ["Sketching", "Digital Art", "Painting", "Animation", "Graphic Design"],
-        "Writing": ["Fiction", "Poetry", "Technical Writing", "Journalism", "Screenwriting"],
-        "Language Learning": ["Spanish", "French", "German", "Japanese", "Mandarin", "English", "Kannada", "Hindi", "Arabic", "Portuguese"],
-        "Communication Skills": ["English Communication", "Kannada Communication", "Public Speaking", "Presentation Skills", "Negotiation"],
-        "Interview Preparation": ["Technical Interviews", "Behavioral Interviews", "Resume Writing", "Networking"],
-        "Soft Skills": ["Body Language", "Time Management", "Problem Solving", "Teamwork", "Leadership"]
-    };
+    const cancelAddButton = document.getElementById("cancelAdd");
+    const viewToggle = document.getElementById("sviewToggle");
+    const sortToggle = document.getElementById("ssortToggle");
+    const additionalInputs = document.querySelector(".additional-inputs");
+    const initialInput = document.querySelector(".initial-input");
+    const skillSuggestionsContainer = document.getElementById("skillSuggestions");
+    const currentDateDisplay = document.getElementById("scurrentDate");
 
-    if (!skillInput || !skillList || !addSkillButton || !calendarContainer || !viewToggle || !sortToggle) {
-        console.error("Skills section elements not found in the DOM.");
-        return;
+    const certificateModal = document.getElementById("certificateModal");
+    const notesModal = document.getElementById("notesModal");
+    const documentsModal = document.getElementById("documentsModal");
+    const closeCertificateModal = certificateModal ? certificateModal.querySelector(".close-button") : null;
+    const closeNotesModal = notesModal ? notesModal.querySelector(".close-button") : null;
+    const closeDocumentsModal = documentsModal ? documentsModal.querySelector(".close-button") : null;
+    const certificateURLInput = document.getElementById("certificateURL");
+    const saveCertificateButton = document.getElementById("saveCertificate");
+    const certificateSkillNameDisplay = document.getElementById("certificateSkillName");
+    const notesSkillNameDisplay = document.getElementById("notesSkillName");
+    const notesList = document.getElementById("notesList");
+    const newNoteInput = document.getElementById("newNote");
+    const saveNoteButton = document.getElementById("saveNoteButton");
+    const documentsSkillNameDisplay = document.getElementById("documentsSkillName");
+    const documentsList = document.getElementById("documentsList");
+    const newDocumentURLInput = document.getElementById("newDocumentURL");
+    const addDocumentButton = document.getElementById("addDocumentButton");
+    const completionCertificateURLInput = document.getElementById("completionCertificateURL");
+    const saveCertificateURLButton = document.getElementById("saveCertificateURLButton");
+    const certificateDisplay = document.getElementById("certificateDisplay");
+    const certificateLinkDisplay = document.getElementById("certificateLink");
+    const uploadNewDocumentInput = document.getElementById("uploadNewDocument");
+    const uploadDocumentButton = document.getElementById("uploadDocumentButton");
+
+    let showAdditionalInputs = false;
+    const recommendedSkills = ["Python", "JavaScript", "HTML", "CSS", "React", "Node.js", "Java", "C++", "SQL", "Data Analysis"];
+    const recommendedSources = ["Coursera", "Udemy", "edX", "Pluralsight", "LinkedIn Learning", "Codecademy", "FreeCodeCamp", "YouTube"];
+    let skillsData = [];
+    let currentSkillIdForNotes = null;
+    let currentSkillIdForDocuments = null;
+    let currentSkillIdForCertificate = null;
+
+    // --- Helper Functions ---
+
+    // Display current date
+    function updateCurrentDate() {
+        const now = new Date();
+        const options = { weekday: 'long', year: 'numeric', month: 'long', day: 'numeric' };
+        currentDateDisplay.textContent = now.toLocaleDateString(undefined, options);
     }
+    updateCurrentDate();
 
-    const suggestionsList = document.createElement("datalist");
-    suggestionsList.id = "skillSuggestionsList";
-    document.body.appendChild(suggestionsList);
-
-    Object.values(skillSuggestions).flat().forEach(suggestion => {
-        const option = document.createElement("option");
-        option.value = suggestion;
-        suggestionsList.appendChild(option);
+    // Initialize Flatpickr
+    flatpickr(".flatpickr", {
+        dateFormat: "Y-m-d",
     });
 
-    skillInput.setAttribute("list", "skillSuggestionsList");
-
-    addSkillButton.addEventListener("click", function () {
-        const skillText = skillInput.value.trim();
-        if (skillText === "") return;
-
-        const skillItem = createSkillElement(skillText);
-        skillList.appendChild(skillItem);
-        skillInput.value = "";
-        displayCalendarSetup(skillItem);
-    });
-
-    skillList.addEventListener("click", function (event) {
-        const target = event.target;
-        const skillItem = target.closest(".skill-item");
-
-        if (target.classList.contains("skill-name")) {
-            editSkillName(target);
-        } else if (target.classList.contains("skill-delete")) {
-            skillItem.remove();
-            clearCalendar(skillItem);
-        } else if (target.classList.contains("skill-name") || target.classList.contains("skill-item")) {
-            displayCalendar(skillItem);
-        }
-    });
-
-    function createSkillElement(skillText) {
-        const skillItem = document.createElement("li");
-        skillItem.classList.add("skill-item");
-
-        skillItem.innerHTML = `
-            <span class="skill-name">${skillText}</span>
-            <i class="ri-delete-bin-line skill-delete"></i>
-        `;
-
-        return skillItem;
-    }
-
-    function editSkillName(skillNameElement) {
-        const input = document.createElement("input");
-        input.type = "text";
-        input.value = skillNameElement.textContent.trim();
-        input.classList.add("edit-input");
-
-        skillNameElement.replaceWith(input);
-        input.focus();
-
-        function saveEdit() {
-            const newSkillName = document.createElement("span");
-            newSkillName.classList.add("skill-name");
-            newSkillName.textContent = input.value.trim() || "Untitled Skill";
-            input.replaceWith(newSkillName);
-        }
-
-        input.addEventListener("blur", saveEdit);
-        input.addEventListener("keydown", (event) => {
-            if (event.key === "Enter") saveEdit();
-        });
-    }
-
-    function displayCalendarSetup(skillItem) {
-        calendarContainer.innerHTML = `
-            <h3>Calendar Setup for ${skillItem.querySelector(".skill-name").textContent}</h3>
-            <label for="calendarDays">Number of Days:</label>
-            <input type="number" id="calendarDays" min="1" value="7">
-            <button id="generateCalendar">Generate Calendar</button>
-        `;
-
-        const generateCalendarBtn = document.getElementById("generateCalendar");
-        if (generateCalendarBtn) {
-            generateCalendarBtn.addEventListener("click", function () {
-                const days = parseInt(document.getElementById("calendarDays").value);
-                if (days > 0) {
-                    displayCalendar(skillItem, days);
-                }
+    // Function to display suggestions
+    function displaySuggestions(suggestions) {
+        skillSuggestionsContainer.innerHTML = "";
+        if (suggestions.length > 0 && skillInput === document.activeElement) {
+            suggestions.forEach(skill => {
+                const suggestionItem = document.createElement("div");
+                suggestionItem.classList.add("suggestion-item");
+                suggestionItem.textContent = skill;
+                suggestionItem.addEventListener("click", function () {
+                    skillInput.value = skill;
+                    skillSuggestionsContainer.classList.remove("show");
+                });
+                skillSuggestionsContainer.appendChild(suggestionItem);
             });
+            skillSuggestionsContainer.classList.add("show");
         } else {
-            console.error("Generate Calendar button not found.");
+            skillSuggestionsContainer.classList.remove("show");
         }
     }
 
-    async function getRoadmapSuggestions(skillName, days) {
-        const roadmaps = {
-            "python": [
-                "Introduction to Python: Setup, basic syntax",
-                "Data types, variables, and operators",
-                "Control flow: if, loops, functions",
-                "Object-Oriented Programming (OOP) basics",
-                "Working with files and handling exceptions",
-                "Introduction to libraries: NumPy, Pandas",
-                "Web development with Flask or Django",
-                "Database interaction with SQLite or PostgreSQL",
-                "Advanced topics: generators, decorators",
-                "Building a complete project",
-                "Testing and debugging techniques",
-                "Deployment strategies",
-                "Deep dive into specific libraries",
-                "Complex project development",
-                "Optimizing Python code",
-                "Advanced Python features",
-                "Final project and review"
-            ],
-            "javascript": [
-                "JavaScript Basics: Syntax, variables, data types",
-                "DOM manipulation: selecting and modifying elements",
-                "Events and event handling",
-                "Asynchronous JavaScript: callbacks, promises, async/await",
-                "Working with APIs: fetching data",
-                "Introduction to frameworks: React, Vue, Angular",
-                "Building single-page applications (SPAs)",
-                "Node.js basics: server-side JavaScript",
-                "Working with databases: MongoDB, PostgreSQL",
-                "Advanced JavaScript concepts: closures, prototypes",
-                "Building complex web applications",
-                "Testing and debugging JavaScript code",
-                "Performance optimization techniques",
-                "Advanced framework topics",
-                "Building full-stack applications",
-                "Exploring new JavaScript features",
-                "Final project and review"
-            ],
-            "c++": [
-                "C++ Basics: Syntax, variables, data types",
-                "Object-Oriented Programming (OOP) concepts",
-                "Working with templates: generic programming",
-                "Standard Template Library (STL): containers, algorithms",
-                "Exception handling: managing errors",
-                "Advanced C++ features: smart pointers, move semantics",
-                "Building complex applications",
-                "Working with libraries: Boost, Qt",
-                "Performance optimization techniques",
-                "Multi-threading and concurrency",
-                "Building games and simulations",
-                "Advanced C++ concepts",
-                "Testing and debugging C++ code",
-                "Exploring new C++ standards",
-                "Building cross-platform applications",
-                "Deep dive into specific libraries",
-                "Final project and review"
-            ],
-            "java": [
-                "Java Basics: Syntax, variables, data types",
-                "Object-Oriented Programming (OOP) concepts",
-                "Collections framework: lists, sets, maps",
-                "Multi-threading and concurrency",
-                "Database connectivity: JDBC",
-                "Spring Framework: dependency injection, MVC",
-                "Building web applications with Spring Boot",
-                "Working with APIs: RESTful services",
-                "Advanced Java features: lambdas, streams",
-                "Building enterprise applications",
-                "Testing and debugging Java code",
-                "Performance optimization techniques",
-                "Building Android applications",
-                "Exploring new Java features",
-                "Building microservices architecture",
-                "Deep dive into specific libraries",
-                "Final project and review"
-            ],
-            "c": [
-                "C Basics: Syntax, variables, data types",
-                "Pointers and memory management",
-                "Working with arrays and strings",
-                "File handling and input/output",
-                "Structures and unions",
-                "Advanced C features: bitwise operations, preprocessor",
-                "Building system-level applications",
-                "Working with libraries: GTK, SDL",
-                "Performance optimization techniques",
-                "Building embedded systems",
-                "Advanced C concepts",
-                "Testing and debugging C code",
-                "Exploring new C standards",
-                "Building cross-platform applications",
-                "Deep dive into specific libraries",
-                "Final project and review"
-            ],
-            "c#": [
-                ".NET Basics: Syntax, variables, data types",
-                "Language Integrated Query (LINQ)",
-                "Asynchronous programming: async/await",
-                "Windows Presentation Foundation (WPF) or Windows Forms",
-                "ASP.NET: building web applications",
-                "Entity Framework: object-relational mapping",
-                "Building desktop and web applications",
-                "Working with APIs: RESTful services",
-                "Advanced C# features: generics, reflection",
-                "Building enterprise applications",
-                "Testing and debugging C# code",
-                "Performance optimization techniques",
-                "Building mobile applications with Xamarin",
-                "Exploring new C# features",
-                "Building microservices architecture",
-                "Deep dive into specific libraries",
-                "Final project and review"
-            ],
-            "html": [
-                "HTML Basics: Tags, elements, attributes",
-                "Forms and input elements",
-                "Semantic HTML: improving accessibility",
-                "HTML5 APIs: canvas, audio, video",
-                "Building responsive web pages",
-                "Advanced HTML features: web components, ARIA",
-                "Building complex web layouts",
-                "Working with frameworks: Bootstrap, Foundation",
-                "Performance optimization techniques",
-                "Building web applications",
-                "Testing and debugging HTML code",
-                "Exploring new HTML standards",
-                "Building accessible web pages",
-                "Deep dive into specific HTML features",
-                "Building progressive web apps (PWAs)",
-                "Integrating HTML with other technologies",
-                "Final project and review"
-            ],
-            "css": [
-                "CSS Basics: Selectors, properties, values",
-                "Layouts: flexbox, grid",
-                "Animations and transitions",
-                "Responsive design: media queries",
-                "CSS frameworks: Bootstrap, Tailwind CSS",
-                "Advanced CSS features: variables, calc(), filters",
-                "Building complex web designs",
-                "Performance optimization techniques",
-                "Building accessible web designs",
-                "Testing and debugging CSS code",
-                "Exploring new CSS standards",
-                "Building CSS-in-JS solutions",
-                "Deep dive into specific CSS features",
-                "Building design systems",
-                "Integrating CSS with other technologies",
-                "Final project and review"
-            ],
-            "communication": [
-                "Active listening and empathy",
-                "Verbal communication: clarity, conciseness",
-                "Non-verbal communication: body language, tone",
-                "Presentation skills: storytelling, visuals",
-                "Negotiation and conflict resolution",
-                "Public speaking: overcoming fear, engaging audiences",
-                "Building rapport and trust",
-                "Effective email and written communication",
-                "Facilitation and leading meetings",
-                "Giving and receiving feedback",
-                "Advanced communication techniques",
-                "Intercultural communication",
-                "Crisis communication",
-                "Communication for leadership",
-                "Building communication strategies",
-                "Deep dive into specific communication skills",
-                "Final project and review"
-            ],
-            "interview preparation": [
-                "Resume and cover letter writing",
-                "Behavioral interview questions: STAR method",
-                "Technical interview questions: algorithms, data structures",
-                "Mock interviews: practice and feedback",
-                "Networking: building connections",
-                "Job search strategies: online and offline",
-                "Negotiating salary and benefits",
-                "Building a personal brand",
-                "Advanced interview techniques",
-                "Understanding company culture",
-                "Preparing for specific industries",
-                "Interviewing for leadership roles",
-                "Dealing with rejection",
-                "Exploring new job opportunities",
-                "Deep dive into specific interview skills",
-                "Final project and review"
-            ],
-            "body language": [
-                "Posture and stance",
-                "Eye contact and gaze",
-                "Gestures and hand movements",
-                "Facial expressions and microexpressions",
-                "Proxemics: personal space and distance",
-                "Advanced body language: reading and influencing",
-                "Building confidence and presence",
-                "Understanding cultural differences",
-                "Using body language in presentations",
-                "Detecting deception",
-                "Body language in negotiations",
-                "Body language for leadership",
-                "Advanced body language techniques",
-                "Deep dive into specific body language cues",
-                "Body language for specific situations",
-                "Final project and review"
-            ],
-            "drawing": [
-                "Basics of sketching: lines, shapes, perspective",
-                "Digital art fundamentals: software, tools",
-                "Painting techniques: color theory, brushwork",
-                "Animation principles: timing, squash and stretch",
-                "Graphic design: layout, typography, branding",
-                "Advanced drawing techniques",
-                "Building a portfolio",
-                "Working with clients",
-                "Exploring different art styles",
-                "Creating digital illustrations",
-                "Building 3D models",
-                "Advanced animation techniques",
-                "Deep dive into specific art skills",
-                "Art business and marketing",
-                "Integrating art with other technologies",
-                "Final project and review"
-            ],
-            "writing": [
-                "Fiction writing: plot, characters, setting",
-                "Poetry writing: forms, styles, techniques",
-                "Technical writing: documentation, manuals",
-                "Journalism: news reporting, feature writing",
-                "Screenwriting: formatting, structure, dialogue",
-                "Advanced writing techniques",
-                "Building a writing portfolio",
-                "Working with editors and publishers",
-                "Exploring different genres",
-                "Creating compelling content",
-                "Building a writing career",
-                "Advanced storytelling techniques",
-                "Deep dive into specific writing skills",
-                "Writing for specific audiences",
-                "Integrating writing with other technologies",
-                "Final project and review"
-            ],
-            "language learning": [
-                "Basics of the language: pronunciation, grammar",
-                "Vocabulary building: common words and phrases",
-                "Listening comprehension: audio and video materials",
-                "Speaking practice: conversations, role-playing",
-                "Reading comprehension: texts and articles",
-                "Writing practice: essays, letters, stories",
-                "Advanced grammar and syntax",
-                "Cultural immersion: movies, music, literature",
-                "Building fluency and confidence",
-                "Exploring advanced vocabulary",
-                "Language learning strategies",
-                "Deep dive into specific language skills",
-                "Language for specific purposes",
-                "Integrating language with other technologies",
-                "Final project and review"
-            ],
-            "time management": [
-                "Prioritization and goal setting",
-                "Scheduling and planning",
-                "Dealing with distractions",
-                "Delegation and outsourcing",
-                "Time blocking and task batching",
-                "Advanced time management techniques",
-                "Building productivity habits",
-                "Time management for specific situations",
-                "Deep dive into specific time management skills",
-                "Integrating time management with other technologies",
-                "Final project and review"
-            ],
-            "problem solving": [
-                "Identifying and defining problems",
-                "Generating and evaluating solutions",
-                "Decision-making and risk assessment",
-                "Creative problem-solving techniques",
-                "Collaborative problem-solving",
-                "Advanced problem-solving techniques",
-                "Building critical thinking skills",
-                "Problem-solving for specific situations",
-                "Deep dive into specific problem-solving skills",
-                "Integrating problem-solving with other technologies",
-                "Final project and review"
-            ],
-            "teamwork": [
-                "Communication and collaboration",
-                "Conflict resolution and negotiation",
-                "Building trust and rapport",
-                "Team leadership and facilitation",
-                "Advanced teamwork techniques",
-                "Building high-performing teams",
-                "Teamwork for specific situations",
-                "Deep dive into specific teamwork skills",
-                "Integrating teamwork with other technologies",
-                "Final project and review"
-            ],
-            "leadership": [
-                "Vision and goal setting",
-                "Motivation and inspiration",
-                "Delegation and empowerment",
-                "Communication and feedback",
-                "Advanced leadership techniques",
-                "Building a leadership style",
-                "Leadership for specific situations",
-                "Deep dive into specific leadership skills",
-                "Integrating leadership with other technologies",
-                "Final project and review"
-            ]
-        };
-
-        const roadmap = roadmaps[skillName.toLowerCase()] || ["Add task"];
-        return roadmap.slice(0, days);
+    // Function to display source suggestions
+    function displaySourceSuggestions(suggestions) {
+        const sourceSuggestionsContainer = document.getElementById("sourceSuggestions");
+        sourceSuggestionsContainer.innerHTML = "";
+        if (suggestions.length > 0) {
+            suggestions.forEach(source => {
+                const suggestionItem = document.createElement("div");
+                suggestionItem.classList.add("suggestion-item");
+                suggestionItem.textContent = source;
+                suggestionItem.addEventListener("click", function() {
+                    document.getElementById("learningSource").value = source;
+                    sourceSuggestionsContainer.classList.remove("show");
+                });
+                sourceSuggestionsContainer.appendChild(suggestionItem);
+            });
+            sourceSuggestionsContainer.classList.add("show");
+        } else {
+            sourceSuggestionsContainer.classList.remove("show");
+        }
     }
 
-   
-    async function displayCalendar(skillItem, days = 7) {
-        const skillName = skillItem.querySelector(".skill-name").textContent;
-        let calendarHTML = `<h3>Calendar for ${skillName}</h3>`;
-        let suggestions = await getRoadmapSuggestions(skillName, days);
-    
-        calendarHTML += `<div class="calendar-grid">`;
-    
-        for (let i = 0; i < days; i++) {
-            const date = new Date();
-            date.setDate(date.getDate() + i);
-            const formattedDate = date.toISOString().split('T')[0];
-    
-            let taskSuggestionDropdown = `<select class="task-suggestion">`;
-            suggestions.forEach(suggestion => {
-                taskSuggestionDropdown += `<option value="${suggestion}">${suggestion}</option>`;
-            });
-            taskSuggestionDropdown += `<option value="Add task">Add task</option>`;
-            taskSuggestionDropdown += `</select>`;
-    
-            calendarHTML += `
-                <div class="calendar-day">
-                    <input type="date" value="${formattedDate}" class="calendar-date">
-                    ${taskSuggestionDropdown}
-                    <textarea class="calendar-details" placeholder="Details for this day"></textarea>
-                    <input type="number" class="reminder-hours" placeholder="Hours">
-                    <button class="save-day">Save</button>
-                    <button class="complete-day">Complete</button>
+    // Function to fetch skills from the API
+    async function fetchSkills() {
+        try {
+            const response = await fetch('/api/skills');
+            if (!response.ok) {
+                throw new Error(`HTTP error! status: ${response.status}`);
+            }
+            const data = await response.json();
+            skillsData = data;
+            renderSkills();
+        } catch (error) {
+            console.error('Error fetching skills:', error);
+            alert('Could not load skills. Please try again.');
+        }
+    }
+
+    // Function to find a skill object by its ID
+    function findSkillObject(id) {
+        return skillsData.find(skill => skill._id === id);
+    }
+
+    // Function to find a skill list item element by its ID
+    function findSkillItem(id) {
+        return skillList.querySelector(`[data-skill-id="${id}"]`);
+    }
+
+    // Function to update the display of a skill item
+    function updateSkillDisplay(item, skill) {
+        if (item) {
+            const progressBar = item.querySelector(".progress-bar");
+            const remainingElement = item.querySelector(".remaining-days");
+            if (progressBar) {
+                progressBar.style.width = `${skill.completed}%`;
+            }
+            if (remainingElement) {
+                const endDate = new Date(skill.expectedEndDate);
+                const today = new Date();
+                const timeLeft = endDate.getTime() > today.getTime() ? Math.ceil((endDate - today) / (1000 * 60 * 60 * 24)) : 0;
+                remainingElement.textContent = `Remaining: ${timeLeft} days`;
+            }
+            item.className = `skill-item ${skill.completed === 100 ? 'completed' : ''}`; // Update the class for color change
+        } else {
+            console.error("Error: Skill item not found for update display.");
+        }
+    }
+
+    // Function to create a skill list item element
+    function createSkillElement(skill) {
+        const li = document.createElement("li");
+        li.classList.add("skill-item");
+        if (skill.completed === 100) {
+            li.classList.add("completed");
+        }
+        li.dataset.skillId = skill._id;
+        li.dataset.priority = skill.priority || 'medium';
+        li.dataset.level = skill.level || 'beginner';
+        
+        const endDate = new Date(skill.expectedEndDate);
+        const today = new Date();
+        const timeLeft = endDate.getTime() > today.getTime() ? Math.ceil((endDate - today) / (1000 * 60 * 60 * 24)) : 0;
+        
+        const progressPercentage = skill.completed || 0;
+        const progressClass = progressPercentage === 100 ? 'completed' : 
+                            progressPercentage >= 75 ? 'high' :
+                            progressPercentage >= 50 ? 'medium' :
+                            progressPercentage >= 25 ? 'low' : 'very-low';
+
+        li.innerHTML = `
+            <div class="skill-details">
+                <div class="skill-header">
+                    <div class="skill-name ${skill.completed === 100 ? 'completed' : ''}">${skill.name}</div>
+                    <div class="skill-meta">
+                        <span class="skill-level ${skill.level}">${skill.level}</span>
+                        <span class="skill-priority ${skill.priority}">${skill.priority}</span>
+                    </div>
                 </div>
-            `;
-        }
-    
-        calendarHTML += `</div>`;
-        calendarHTML += `<button id="toggleCalendarView">Toggle View</button>`;
-    
-        calendarContainer.innerHTML = calendarHTML;
-    
-        // Attach event listeners *after* the calendar is added to the DOM
-        const completeButtons = calendarContainer.querySelectorAll(".complete-day");
-    
-        completeButtons.forEach(button => {
-            button.addEventListener("click", function () {
-                this.parentElement.classList.add("completed");
-                this.parentElement.style.backgroundColor = "#e0f7de"; // Add a visual cue
-                this.parentElement.style.border = "1px solid #a5d6a7"
-                updateHomeSkillCounts();
-            });
-        });
+                
+                <div class="skill-progress-container">
+                    <div class="skill-progress">
+                        <div class="progress-bar ${progressClass}" style="width: ${progressPercentage}%"></div>
+                    </div>
+                    <span class="progress-text">${progressPercentage}%</span>
+                </div>
 
-        calendarContainer.querySelectorAll(".task-suggestion").forEach(select => {
-            select.addEventListener("change", function () {
-                const selectedValue = this.value;
-                if (selectedValue === "Add task") {
-                    const newInput = document.createElement("input");
-                    newInput.type = "text";
-                    newInput.value = "";
-                    newInput.classList.add("task-suggestion-input");
-                    this.replaceWith(newInput);
-                    newInput.focus();
+                <div class="skill-info">
+                    <div class="skill-meta">
+                        <i class="ri-book-open-line"></i>
+                        <span>From: ${skill.learningFrom}</span>
+                    </div>
+                    <div class="skill-meta">
+                        <i class="ri-calendar-line"></i>
+                        <span>Start: ${formatDate(skill.startDate)}</span>
+                    </div>
+                    <div class="skill-meta">
+                        <i class="ri-timer-line"></i>
+                        <span>End: ${formatDate(skill.expectedEndDate)}</span>
+                    </div>
+                    <div class="skill-meta remaining-days ${timeLeft < 7 ? 'urgent' : ''}">
+                        <i class="ri-time-line"></i>
+                        <span>${timeLeft} days remaining</span>
+                    </div>
+                </div>
 
-                    newInput.addEventListener("blur", function () {
-                        const newSelect = document.createElement("select");
-                        newSelect.classList.add("task-suggestion");
-                        suggestions.push(this.value);
-                        suggestions.forEach(suggestion => {
-                            newSelect.innerHTML += `<option value="${suggestion}">${suggestion}</option>`;
-                        });
-                        newSelect.innerHTML += `<option value="Add task">Add task</option>`;
-                        this.replaceWith(newSelect);
-                        newSelect.addEventListener("change", function(){
-                            if(this.value === "Add task"){
-                                this.dispatchEvent(new Event("change"));
-                            }
-                        });
-                    });
-                }
-            });
-        });
+                ${skill.tags && skill.tags.length > 0 ? `
+                    <div class="skill-tags">
+                        ${skill.tags.map(tag => `<span class="tag">${tag.trim()}</span>`).join('')}
+                    </div>
+                ` : ''}
+            </div>
 
-        calendarContainer.querySelectorAll(".save-day").forEach(button => {
-            button.addEventListener("click", function () {
-                const dayDiv = button.parentElement;
-                const date = dayDiv.querySelector(".calendar-date").value;
-                const details = dayDiv.querySelector(".calendar-details").value;
-                const task = dayDiv.querySelector(".task-suggestion").value;
-                const hours = dayDiv.querySelector(".reminder-hours").value;
-                if (date && details) {
-                    skillItem.dataset.calendar = JSON.stringify({ date, details, task, hours });
-                    alert("Calendar details saved!");
-                }
-            });
-        });
+            <div class="skill-actions">
+                <button class="complete-button ${skill.completed === 100 ? 'completed' : ''}">
+                    ${skill.completed === 100 ? 'Undo' : 'Complete'}
+                </button>
+                <button class="notes-button">
+                    <i class="ri-sticky-note-line"></i>
+                    <span class="notes-count">${skill.notes ? skill.notes.length : 0}</span>
+                </button>
+                <button class="documents-button">
+                    <i class="ri-file-list-line"></i>
+                    <span class="documents-count">${skill.documents ? skill.documents.length : 0}</span>
+                </button>
+                <button class="edit-button">
+                    <i class="ri-edit-line"></i>
+                </button>
+                <button class="delete-button">
+                    <i class="ri-delete-bin-line"></i>
+                </button>
+            </div>
+        `;
+        return li;
+    }
 
-        calendarContainer.querySelectorAll(".complete-day").forEach(button => {
-            button.addEventListener("click", function () {
-                button.parentElement.classList.add("completed");
-                updateHomeSkillCounts();
-            });
-        });
+    // Function to format date
+    function formatDate(dateString) {
+        const options = { year: 'numeric', month: 'short', day: 'numeric' };
+        return new Date(dateString).toLocaleDateString(undefined, options);
+    }
 
-        document.getElementById("toggleCalendarView").addEventListener("click", function() {
-            const calendarGrid = calendarContainer.querySelector(".calendar-grid");
-            calendarGrid.classList.toggle("list-view");
-            calendarGrid.classList.toggle("grid-view");
+    // Function to render the skills list in the UI
+    function renderSkills() {
+        skillList.innerHTML = "";
+        skillsData.forEach(skill => {
+            const skillItem = createSkillElement(skill);
+            skillItem.dataset.skillId = skill._id;
+            skillList.appendChild(skillItem);
         });
     }
 
+    // Function to reset the add skill input fields
+    function resetInputFields() {
+        skillInput.value = "";
+        learningSourceInput.value = "";
+        startDateInput.value = "";
+        expectedEndDateInput.value = "";
+        const fpStart = document.querySelector("#startDate")._flatpickr;
+        if (fpStart) fpStart.clear();
+        const fpEnd = document.querySelector("#expectedEndDate")._flatpickr;
+        if (fpEnd) fpEnd.clear();
+    }
+
+    // Function to hide the additional input fields for adding a skill
+    function hideAdditionalInputs() {
+        additionalInputs.style.display = "none";
+        initialInput.style.marginBottom = "0";
+        addSkillButton.textContent = "Add Skill";
+        cancelAddButton.style.display = "none";
+        showAdditionalInputs = false;
+    }
+
+    // --- Event Listeners ---
+
+    // Event listener for input changes to show skill suggestions
+    skillInput.addEventListener("input", function () {
+        const inputText = this.value.toLowerCase();
+        const filteredSuggestions = recommendedSkills.filter(skill =>
+            skill.toLowerCase().startsWith(inputText) && skill.toLowerCase() !== inputText
+        );
+        displaySuggestions(filteredSuggestions.slice(0, 5));
+    });
+
+    // Event listener to hide suggestions when the skill input loses focus
+    skillInput.addEventListener("blur", function () {
+        setTimeout(() => {
+            skillSuggestionsContainer.classList.remove("show");
+        }, 200);
+    });
+
+    // Event listener for the "Add Skill" button
+    addSkillButton.addEventListener("click", async function () {
+        if (!showAdditionalInputs) {
+            additionalInputs.style.display = "flex";
+            initialInput.style.marginBottom = "10px";
+            addSkillButton.textContent = "Save Skill";
+            cancelAddButton.style.display = "inline-block";
+            showAdditionalInputs = true;
+        } else {
+            const skillName = skillInput.value.trim();
+            const learningFrom = learningSourceInput.value.trim();
+            const startDate = startDateInput.value;
+            const expectedEndDate = expectedEndDateInput.value;
+
+            if (skillName && learningFrom && startDate && expectedEndDate) {
+                const newSkill = {
+                    name: skillName,
+                    learningFrom: learningFrom,
+                    startDate: startDate,
+                    expectedEndDate: expectedEndDate,
+                    completed: 0,
+                    completionCertificate: null,
+                    notes: [],
+                    documents: []
+                };
+
+                try {
+                    const response = await fetch('/api/skills', {
+                        method: 'POST',
+                        headers: {
+                            'Content-Type': 'application/json',
+                        },
+                        body: JSON.stringify(newSkill),
+                    });
+                    if (!response.ok) {
+                        throw new Error(`HTTP error! status: ${response.status}`);
+                    }
+                    const savedSkill = await response.json();
+                    skillsData.push(savedSkill);
+                    const skillItem = createSkillElement(savedSkill);
+                    skillItem.dataset.skillId = savedSkill._id;
+                    skillList.appendChild(skillItem);
+                    resetInputFields();
+                    hideAdditionalInputs();
+                } catch (error) {
+                    console.error('Error adding skill:', error);
+                    alert('Could not add skill. Please try again.');
+                }
+            } else {
+                alert('Please fill in all the skill details.');
+            }
+        }
+    });
+
+    // Event listener for the "Cancel" button when adding a skill
+    cancelAddButton.addEventListener("click", function () {
+        resetInputFields();
+        hideAdditionalInputs();
+        skillSuggestionsContainer.classList.remove("show");
+    });
+
+    // Event listener for clicks on the skill list to handle actions
+    skillList.addEventListener("click", async function (event) {
+        const target = event.target;
+        const skillItemElement = target.closest(".skill-item");
+        if (!skillItemElement) return;
+        const skillId = skillItemElement.dataset.skillId;
+
+        if (target.classList.contains("delete-button") || target.closest(".delete-button")) {
+            if (confirm('Are you sure you want to delete this skill?')) {
+                try {
+                    const response = await fetch(`/api/skills/${skillId}`, {
+                        method: 'DELETE',
+                    });
+                    if (!response.ok) {
+                        throw new Error(`HTTP error! status: ${response.status}`);
+                    }
+                    skillsData = skillsData.filter(skill => skill._id !== skillId);
+                    skillItemElement.remove();
+                } catch (error) {
+                    console.error('Error deleting skill:', error);
+                    alert('Could not delete skill. Please try again.');
+                }
+            }
+        } else if (target.classList.contains("complete-button")) {
+            const skillObject = findSkillObject(skillId);
+            if (skillObject) {
+                const newCompletedStatus = skillObject.completed === 0 ? 100 : 0;
+                try {
+                    const response = await fetch(`/api/skills/${skillId}`, {
+                        method: 'PUT',
+                        headers: {
+                            'Content-Type': 'application/json',
+                        },
+                        body: JSON.stringify({ completed: newCompletedStatus }),
+                    });
+                    if (!response.ok) {
+                        throw new Error(`HTTP error! status: ${response.status}`);
+                    }
+                    const updatedSkill = await response.json();
+                    const index = skillsData.findIndex(skill => skill._id === updatedSkill._id);
+                    if (index !== -1) {
+                        skillsData[index] = updatedSkill;
+                    }
+                    const updatedSkillItemElement = findSkillItem(skillId);
+                    if (updatedSkillItemElement) {
+                        updateSkillDisplay(updatedSkillItemElement, updatedSkill);
+                        updatedSkillItemElement.querySelector(".skill-name").classList.toggle("completed", updatedSkill.completed === 100);
+                        target.textContent = updatedSkill.completed === 100 ? 'Undo' : 'Complete';
+                        if (updatedSkill.completed === 100) {
+                            currentSkillIdForDocuments = skillId;
+                            showDocumentsModal(updatedSkill);
+                        }
+                    } else {
+                        console.error("Error: Could not find skill item after update.");
+                    }
+                } catch (error) {
+                    console.error('Error updating skill:', error);
+                    alert('Could not update skill. Please try again.');
+                }
+            }
+        } else if (target.classList.contains("notes-button")) {
+            const skillObject = findSkillObject(skillId);
+            if (skillObject) {
+                currentSkillIdForNotes = skillId;
+                showNotesModal(skillObject);
+            }
+        } else if (target.classList.contains("documents-button")) {
+            const skillObject = findSkillObject(skillId);
+            if (skillObject) {
+                currentSkillIdForDocuments = skillId;
+                showDocumentsModal(skillObject);
+            }
+        }
+    });
+
+    // Event listener for toggling the view (list/grid)
     viewToggle.addEventListener("click", function () {
         skillList.classList.toggle("grid-view");
         skillList.classList.toggle("list-view");
     });
 
+    // Event listener for sorting the skills alphabetically
     sortToggle.addEventListener("click", function () {
+        const sortOptions = document.createElement("div");
+        sortOptions.classList.add("sort-options");
+        sortOptions.innerHTML = `
+            <button data-sort="name">Sort by Name</button>
+            <button data-sort="priority">Sort by Priority</button>
+            <button data-sort="level">Sort by Level</button>
+            <button data-sort="progress">Sort by Progress</button>
+            <button data-sort="deadline">Sort by Deadline</button>
+        `;
+        this.parentNode.appendChild(sortOptions);
+
+        sortOptions.addEventListener("click", function(e) {
+            if (e.target.tagName === "BUTTON") {
+                sortSkills(e.target.dataset.sort);
+                sortOptions.remove();
+            }
+        });
+
+        // Remove sort options when clicking outside
+        document.addEventListener("click", function removeSortOptions(e) {
+            if (!e.target.closest(".sort-options") && !e.target.closest("#ssortToggle")) {
+                sortOptions.remove();
+                document.removeEventListener("click", removeSortOptions);
+            }
+        });
+    });
+
+    // --- Notes Modal Logic ---
+    function showNotesModal(skill) {
+        notesSkillNameDisplay.textContent = skill.name;
+        notesList.innerHTML = ''; // Clear previous notes
+        skill.notes.forEach(note => {
+            const noteItem = document.createElement('div');
+            noteItem.classList.add('note-item');
+            noteItem.innerHTML = `<p><strong class="note-date">${note.date}:</strong> ${note.content}</p>`;
+            notesList.appendChild(noteItem);
+        });
+        newNoteInput.value = '';
+        notesModal.classList.add("show");
+    }
+
+    saveNoteButton.addEventListener("click", async function () {
+        if (currentSkillIdForNotes) {
+            const noteContent = newNoteInput.value.trim();
+            if (noteContent) {
+                const skill = findSkillObject(currentSkillIdForNotes);
+                if (skill) {
+                    const today = new Date().toISOString().slice(0, 10); // Get current date in YYYY-MM-DD format
+                    const newNote = { date: today, content: noteContent };
+                    skill.notes.push(newNote);
+                    try {
+                        const response = await fetch(`/api/skills/${currentSkillIdForNotes}`, {
+                            method: 'PUT',
+                            headers: {
+                                'Content-Type': 'application/json',
+                            },
+                            body: JSON.stringify({ notes: skill.notes }),
+                        });
+                        if (!response.ok) {
+                            throw new Error(`HTTP error! status: ${response.status}`);
+                        }
+                        const updatedSkill = await response.json();
+                        const index = skillsData.findIndex(s => s._id === updatedSkill._id);
+                        if (index !== -1) {
+                            skillsData[index] = updatedSkill;
+                        }
+                        showNotesModal(updatedSkill); // Refresh the notes display
+                    } catch (error) {
+                        console.error('Error saving note:', error);
+                        alert('Could not save note. Please try again.');
+                    }
+                    newNoteInput.value = '';
+                }
+            }
+        }
+    });
+
+    if (closeNotesModal) {
+        closeNotesModal.addEventListener("click", function () {
+            notesModal.classList.remove("show");
+            currentSkillIdForNotes = null;
+        });
+    }
+
+    // --- Documents Modal Logic ---
+    function showDocumentsModal(skill) {
+        // First check if the modal exists
+        const documentsModalElement = document.getElementById("documentsModal");
+        if (!documentsModalElement) {
+            console.error("Error: Documents modal not found in the DOM");
+            return;
+        }
+
+        // Update skill name
+        const documentsSkillNameDisplay = document.getElementById("documentsSkillName");
+        if (documentsSkillNameDisplay) {
+            documentsSkillNameDisplay.textContent = skill.name;
+        }
+
+        // Handle certificate display
+        const certificateDisplay = document.getElementById("certificateDisplay");
+        const certificateLinkDisplay = document.getElementById("certificateLink");
+        const deleteCertificateButton = document.getElementById("deleteCertificateButton");
+        
+        if (certificateDisplay && certificateLinkDisplay && deleteCertificateButton) {
+            if (skill.completionCertificate) {
+                certificateLinkDisplay.textContent = skill.completionCertificate.split('/').pop();
+                certificateLinkDisplay.href = skill.completionCertificate;
+                certificateDisplay.style.display = "block";
+                deleteCertificateButton.style.display = "flex";
+            } else {
+                certificateLinkDisplay.textContent = "No certificate added";
+                certificateLinkDisplay.href = "#";
+                certificateDisplay.style.display = "block";
+                deleteCertificateButton.style.display = "none";
+            }
+        }
+
+        // Handle documents list
+        const documentsListElement = document.getElementById("documentsList");
+        if (documentsListElement) {
+            documentsListElement.innerHTML = ''; // Clear previous documents
+            if (skill.documents && skill.documents.length > 0) {
+                skill.documents.forEach((docURL, index) => {
+                    const listItem = document.createElement('div');
+                    listItem.classList.add('document-item');
+                    
+                    const docLink = document.createElement('a');
+                    docLink.href = docURL;
+                    docLink.textContent = docURL.split('/').pop();
+                    docLink.target = "_blank";
+                    
+                    const deleteButton = document.createElement('button');
+                    deleteButton.classList.add('delete-document-button');
+                    deleteButton.innerHTML = '<i class="ri-delete-bin-line"></i>';
+                    deleteButton.onclick = () => deleteDocument(skill._id, index);
+                    
+                    listItem.appendChild(docLink);
+                    listItem.appendChild(deleteButton);
+                    documentsListElement.appendChild(listItem);
+                });
+            }
+        }
+
+        // Show the modal
+        documentsModalElement.classList.add("show");
+    }
+    
+    // Add event listener for certificate upload
+    document.getElementById("uploadCertificateButton").addEventListener("click", async function() {
+        const file = document.getElementById("uploadCertificate").files[0];
+        if (!file) {
+            alert('Please select a certificate file to upload.');
+            return;
+        }
+
+        const formData = new FormData();
+        formData.append('document', file);
+        formData.append('skillId', currentSkillIdForDocuments);
+        formData.append('isCertificate', 'true'); // Flag to indicate this is a certificate
+
+        try {
+            const response = await fetch('/api/upload_document', {
+                method: 'POST',
+                body: formData,
+            });
+
+            if (!response.ok) {
+                throw new Error(`HTTP error! status: ${response.status}`);
+            }
+
+            const result = await response.json();
+            const skill = findSkillObject(currentSkillIdForDocuments);
+            if (skill) {
+                skill.completionCertificate = result.url;
+                const index = skillsData.findIndex(s => s._id === currentSkillIdForDocuments);
+                if (index !== -1) {
+                    skillsData[index] = skill;
+                }
+                showDocumentsModal(skill);
+                alert('Certificate uploaded successfully!');
+            }
+        } catch (error) {
+            console.error('Error uploading certificate:', error);
+            alert('Could not upload certificate. Please try again.');
+        }
+    });
+    
+    // Add event listener for certificate deletion
+    document.getElementById("deleteCertificateButton").addEventListener("click", async function() {
+        if (!confirm('Are you sure you want to delete this certificate?')) {
+            return;
+        }
+
+        try {
+            const skill = findSkillObject(currentSkillIdForDocuments);
+            if (skill) {
+                skill.completionCertificate = null;
+                const response = await fetch(`/api/skills/${currentSkillIdForDocuments}`, {
+                    method: 'PUT',
+                    headers: {
+                        'Content-Type': 'application/json',
+                    },
+                    body: JSON.stringify({ completionCertificate: null }),
+                });
+
+                if (!response.ok) {
+                    throw new Error(`HTTP error! status: ${response.status}`);
+                }
+
+                const updatedSkill = await response.json();
+                const index = skillsData.findIndex(s => s._id === updatedSkill._id);
+                if (index !== -1) {
+                    skillsData[index] = updatedSkill;
+                }
+                showDocumentsModal(updatedSkill);
+                alert('Certificate deleted successfully!');
+            }
+        } catch (error) {
+            console.error('Error deleting certificate:', error);
+            alert('Could not delete certificate. Please try again.');
+        }
+    });
+
+    // Add event listener for document upload
+    document.getElementById("uploadDocumentButton").addEventListener("click", async function() {
+        const file = document.getElementById("uploadNewDocument").files[0];
+        if (!file) {
+            alert('Please select a document to upload.');
+            return;
+        }
+
+        const formData = new FormData();
+        formData.append('document', file);
+        formData.append('skillId', currentSkillIdForDocuments);
+
+        try {
+            const response = await fetch('/api/upload_document', {
+                method: 'POST',
+                body: formData,
+            });
+
+            if (!response.ok) {
+                throw new Error(`HTTP error! status: ${response.status}`);
+            }
+
+            const result = await response.json();
+            const skill = findSkillObject(currentSkillIdForDocuments);
+            if (skill) {
+                if (!skill.documents) {
+                    skill.documents = [];
+                }
+                skill.documents.push(result.url);
+                const index = skillsData.findIndex(s => s._id === currentSkillIdForDocuments);
+                if (index !== -1) {
+                    skillsData[index] = skill;
+                }
+                showDocumentsModal(skill);
+                alert('Document uploaded successfully!');
+            }
+        } catch (error) {
+            console.error('Error uploading document:', error);
+            alert('Could not upload document. Please try again.');
+        }
+    });
+
+    // Function to handle document deletion
+    async function deleteDocument(skillId, documentIndex) {
+        if (!confirm('Are you sure you want to delete this document?')) {
+            return;
+        }
+
+        try {
+            const skill = findSkillObject(skillId);
+            if (skill && skill.documents && skill.documents[documentIndex]) {
+                skill.documents.splice(documentIndex, 1);
+                const response = await fetch(`/api/skills/${skillId}`, {
+                    method: 'PUT',
+                    headers: {
+                        'Content-Type': 'application/json',
+                    },
+                    body: JSON.stringify({ documents: skill.documents }),
+                });
+
+                if (!response.ok) {
+                    throw new Error(`HTTP error! status: ${response.status}`);
+                }
+
+                const updatedSkill = await response.json();
+                const index = skillsData.findIndex(s => s._id === updatedSkill._id);
+                if (index !== -1) {
+                    skillsData[index] = updatedSkill;
+                }
+                showDocumentsModal(updatedSkill);
+                alert('Document deleted successfully!');
+            }
+        } catch (error) {
+            console.error('Error deleting document:', error);
+            alert('Could not delete document. Please try again.');
+        }
+    }
+    
+    if (closeDocumentsModal) {
+        closeDocumentsModal.addEventListener("click", function () {
+            const documentsModalElement = document.getElementById("documentsModal");
+            if (documentsModalElement) {
+                documentsModalElement.classList.remove("show");
+            }
+            currentSkillIdForDocuments = null;
+        });
+    }
+    
+    // --- Certificate Modal Logic (Potentially Redundant) ---
+    function showCertificateModal(skill) {
+        certificateSkillNameDisplay.textContent = skill.name;
+        certificateURLInput.value = skill.completionCertificate || '';
+        certificateModal.classList.add("show");
+        currentSkillIdForCertificate = skill._id;
+    }
+    
+    saveCertificateButton.addEventListener("click", async function () {
+        if (currentSkillIdForCertificate) {
+            const certificateURL = certificateURLInput.value.trim();
+            const skill = findSkillObject(currentSkillIdForCertificate);
+            if (skill) {
+                try {
+                    const response = await fetch(`/api/skills/${currentSkillIdForCertificate}`, {
+                        method: 'PUT',
+                        headers: {
+                            'Content-Type': 'application/json',
+                        },
+                        body: JSON.stringify({ completionCertificate: certificateURL }),
+                    });
+                    if (!response.ok) {
+                        throw new Error(`HTTP error! status: ${response.status}`);
+                    }
+                    const updatedSkill = await response.json();
+                    const index = skillsData.findIndex(s => s._id === updatedSkill._id);
+                    if (index !== -1) {
+                        skillsData[index] = updatedSkill;
+                    }
+                    certificateModal.classList.remove("show");
+                    alert(`Certificate saved for ${skill.name}!`);
+                    const documentsSkill = findSkillObject(currentSkillIdForCertificate);
+                    if (documentsSkill) {
+                        showDocumentsModal(documentsSkill); // Update documents modal if it's open
+                    }
+                } catch (error) {
+                    console.error('Error saving certificate:', error);
+                    alert('Could not save certificate. Please try again.');
+                }
+            }
+        }
+    });
+    
+    if (closeCertificateModal) {
+        closeCertificateModal.addEventListener("click", function () {
+            certificateModal.classList.remove("show");
+        });
+    }
+    
+    // --- General Modal Closing on Outside Click ---
+    window.addEventListener("click", function (event) {
+        if (event.target === notesModal) {
+            notesModal.classList.remove("show");
+            currentSkillIdForNotes = null;
+        }
+        const documentsModalElement = document.getElementById("documentsModal");
+        if (event.target === documentsModalElement) {
+            documentsModalElement.classList.remove("show");
+            currentSkillIdForDocuments = null;
+        }
+        if (event.target === certificateModal) {
+            certificateModal.classList.remove("show");
+        }
+    });
+    
+    // Initial fetch of skills on load
+    await fetchSkills();
+    renderSkills(); // Ensure initial rendering
+
+    // Add event listener for learning source input
+    document.getElementById("learningSource").addEventListener("input", function() {
+        const inputText = this.value.toLowerCase();
+        const filteredSuggestions = recommendedSources.filter(source =>
+            source.toLowerCase().includes(inputText)
+        );
+        displaySourceSuggestions(filteredSuggestions);
+    });
+
+    // Add event listener for skill tags input
+    document.getElementById("skillTags").addEventListener("keydown", function(e) {
+        if (e.key === 'Enter' || e.key === ',') {
+            e.preventDefault();
+            const tags = this.value.split(',').map(tag => tag.trim()).filter(tag => tag);
+            this.value = tags.join(', ');
+        }
+    });
+
+    // Function to handle skill editing
+    async function editSkill(skillId) {
+        const skill = findSkillObject(skillId);
+        if (!skill) return;
+
+        // Populate the form with skill data
+        document.getElementById("newSkill").value = skill.name;
+        document.getElementById("startDate").value = skill.startDate;
+        document.getElementById("expectedEndDate").value = skill.expectedEndDate;
+        document.getElementById("learningSource").value = skill.learningFrom;
+        document.getElementById("skillLevel").value = skill.level;
+        document.getElementById("skillPriority").value = skill.priority;
+        document.getElementById("skillTags").value = skill.tags ? skill.tags.join(', ') : '';
+
+        // Show the form
+        document.querySelector(".additional-inputs").style.display = "flex";
+        document.querySelector(".initial-input").style.marginBottom = "10px";
+        document.getElementById("addSkill").textContent = "Update Skill";
+        document.getElementById("cancelAdd").style.display = "inline-block";
+
+        // Update the add skill button to handle updates
+        const addButton = document.getElementById("addSkill");
+        const originalClickHandler = addButton.onclick;
+        addButton.onclick = async function() {
+            const updatedSkill = {
+                name: document.getElementById("newSkill").value.trim(),
+                startDate: document.getElementById("startDate").value,
+                expectedEndDate: document.getElementById("expectedEndDate").value,
+                learningFrom: document.getElementById("learningSource").value.trim(),
+                level: document.getElementById("skillLevel").value,
+                priority: document.getElementById("skillPriority").value,
+                tags: document.getElementById("skillTags").value.split(',').map(tag => tag.trim()).filter(tag => tag),
+                completed: skill.completed,
+                notes: skill.notes,
+                documents: skill.documents
+            };
+
+            try {
+                const response = await fetch(`/api/skills/${skillId}`, {
+                    method: 'PUT',
+                    headers: {
+                        'Content-Type': 'application/json',
+                    },
+                    body: JSON.stringify(updatedSkill),
+                });
+
+                if (!response.ok) {
+                    throw new Error(`HTTP error! status: ${response.status}`);
+                }
+
+                const updatedSkillData = await response.json();
+                const index = skillsData.findIndex(s => s._id === updatedSkillData._id);
+                if (index !== -1) {
+                    skillsData[index] = updatedSkillData;
+                }
+                renderSkills();
+                resetInputFields();
+                hideAdditionalInputs();
+                addButton.onclick = originalClickHandler;
+            } catch (error) {
+                console.error('Error updating skill:', error);
+                alert('Could not update skill. Please try again.');
+            }
+        };
+    }
+
+    // Add event listener for edit button
+    document.addEventListener("click", function(e) {
+        if (e.target.closest(".edit-button")) {
+            const skillItem = e.target.closest(".skill-item");
+            const skillId = skillItem.dataset.skillId;
+            editSkill(skillId);
+        }
+    });
+
+    // Function to handle skill sorting
+    function sortSkills(criteria) {
         const skills = Array.from(skillList.children);
         skills.sort((a, b) => {
-            const nameA = a.querySelector(".skill-name").textContent.toLowerCase();
-            const nameB = b.querySelector(".skill-name").textContent.toLowerCase();
-            return nameA.localeCompare(nameB);
+            switch(criteria) {
+                case 'name':
+                    return a.querySelector(".skill-name").textContent.localeCompare(b.querySelector(".skill-name").textContent);
+                case 'priority':
+                    const priorityOrder = { high: 0, medium: 1, low: 2 };
+                    return priorityOrder[a.dataset.priority] - priorityOrder[b.dataset.priority];
+                case 'level':
+                    const levelOrder = { advanced: 0, intermediate: 1, beginner: 2 };
+                    return levelOrder[a.dataset.level] - levelOrder[b.dataset.level];
+                case 'progress':
+                    const progressA = parseInt(a.querySelector(".progress-text").textContent);
+                    const progressB = parseInt(b.querySelector(".progress-text").textContent);
+                    return progressB - progressA;
+                case 'deadline':
+                    const daysA = parseInt(a.querySelector(".remaining-days").textContent);
+                    const daysB = parseInt(b.querySelector(".remaining-days").textContent);
+                    return daysA - daysB;
+                default:
+                    return 0;
+            }
         });
         skillList.innerHTML = "";
         skills.forEach(skill => skillList.appendChild(skill));
-    });
-
-    function clearCalendar(skillItem) {
-        const skillName = skillItem.querySelector(".skill-name").textContent;
-        const calendarHeader = calendarContainer.querySelector("h3");
-
-        if (calendarHeader && calendarHeader.textContent.includes(skillName)) {
-            calendarContainer.innerHTML = "";
-        }
-    }
-
-    async function updateHomeSkillCounts() {
-        try {
-            const skillItems = skillList.querySelectorAll(".skill-item");
-            let completedCount = 0;
-            let remainingCount = 0;
-
-            skillItems.forEach(item => {
-                const dayDivs = calendarContainer.querySelectorAll(".calendar-day");
-
-                let allCompleted = true;
-                dayDivs.forEach(div => {
-                  if(div.parentElement.parentElement === calendarContainer && div.parentElement.parentElement.previousElementSibling === item){
-                    if(!div.classList.contains("completed")){
-                      allCompleted = false;
-                    }
-                  }
-                });
-                if(allCompleted && dayDivs.length > 0 && dayDivs[0].parentElement.parentElement === calendarContainer){
-                    completedCount++;
-                } else{
-                    remainingCount++;
-                }
-            });
-
-            const homeSkillsRemainingCount = document.getElementById("skillsRemainingCount");
-            const homeSkillsCompletedCount = document.getElementById("skillsCompletedCount");
-
-            if (homeSkillsRemainingCount && homeSkillsCompletedCount) {
-                homeSkillsRemainingCount.textContent = remainingCount;
-                homeSkillsCompletedCount.textContent = completedCount;
-            }
-        } catch (error) {
-            console.error('Error updating skill counts:', error);
-        }
-    }
-    updateHomeSkillCounts();
-}
-document.addEventListener("DOMContentLoaded", setupSkillsSection);
-//date 
-document.addEventListener("DOMContentLoaded", function () {
-    const currentDateElements = document.querySelectorAll(".currentDate");
-
-    if (currentDateElements.length > 0) {
-        const today = new Date();
-        const options = { weekday: "long", month: "long", day: "numeric", year: "numeric" };
-        const formattedDate = today.toLocaleDateString("en-US", options);
-
-        currentDateElements.forEach(element => {
-            element.textContent = formattedDate;
-        });
     }
 });

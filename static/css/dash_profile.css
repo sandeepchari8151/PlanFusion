@@ -1,7 +1,10 @@
 @import url("https://fonts.googleapis.com/css?family=DM+Sans:400,500|Jost:400,500,600&display=swap");
+
+/* Base styles for all screen sizes */
 .cover-image {
   background-image: url('https://images.unsplash.com/photo-1549068106-b024baf5062d?ixlib=rb-1.2.1&auto=format&fit=crop&w=934&q=80');
 }
+
 * {
   box-sizing: border-box;
   margin: 0;
@@ -18,20 +21,19 @@ body {
 .dashboard-section {
   display: none;
 }
+
 .dashboard-section.active {
   display: block;
 }
 
-/* Default styles (can be overridden in the media query) */
 .card-wrapper {
   display: flex;
   flex-wrap: wrap;
   justify-content: center;
   gap: 20px;
-  padding: 1px 1px;
-  /* min-height: calc(100vh - 40px); Removed default min-height */
-  /* align-items: flex-start; Removed default align-items */
+  padding: 20px;
 }
+
 .avatar-edit-wrapper {
   position: relative;
   display: inline-block;
@@ -39,25 +41,49 @@ body {
   transition: transform 0.3s ease;
 }
 
-.avatar-edit-wrapper:hover {
-  transform: scale(1.01);
+#profileAvatar {
+  display: block; /* Ensure it's treated as a block-level element (or inline-block) */
+  visibility: visible; /* Make sure it's not set to hidden */
+  opacity: 1; /* Ensure it's fully opaque */
+  width: 120px; /* Or your desired width */
+  height: 120px; /* Or your desired height */
+  /* You might need to adjust these based on your layout */
+}
+
+.card-avatar {
+  /* These styles are already in your provided CSS, but ensure they aren't causing issues */
+  width: 120px;
+  height: 120px;
+  border-radius: 50%;
+  object-fit: cover;
+  position: relative;
+  bottom: 12px;
+  left: 180px;
+  transform: translate(-50%, -64px);
+  box-shadow: 0 8px 16px rgba(0, 0, 0, 0.2);
+}
+
+.avatar-edit-wrapper {
+  /* Ensure the wrapper itself is visible */
+  display: inline-block;
+  /* Other styles from your CSS should be fine unless they conflict */
 }
 
 .avatar-edit-wrapper::after {
-  content: "\f303"; /* FontAwesome edit icon (use Unicode or your icon font of choice) */
-  font-family: "Font Awesome 5 Free"; /* or any other icon library you're using */
-  font-weight: 900;
+  display: none;
+  content: "\ebfc"; /* Pencil-line icon in Remix Icon */
+  font-family: "RemixIcon";
+  font-size: 16px;
   position: absolute;
   bottom: 6px;
   right: 6px;
-  font-size: 14px;
-  background: #516acc;
-  color: white;
-  padding: 6px;
+  background-color: #516acc;
+  color: #fff;
+  padding: 5px;
   border-radius: 50%;
-  box-shadow: 0 2px 5px rgba(0, 0, 0, 0.15);
   pointer-events: none;
 }
+
 .card {
   display: flex;
   flex-direction: column;
@@ -65,25 +91,21 @@ body {
   border-radius: 12px;
   box-shadow: 0 8px 24px rgba(0, 0, 0, 0.08);
   overflow: hidden;
-  /* max-height: 80vh; Removed default max-height */
 }
 
 .card.block-1 {
-  flex: 1 1 300px;
+  flex: 1 1 350px;
   max-width: 350px;
-  height: auto;
   display: flex;
   flex-direction: column;
 }
 
 .card.block-2 {
-  flex: 1 1 600px;
-  max-width: 600px;
-  height: auto;
+  flex: 1 1 650px;
+  max-width: 650px;
   display: flex;
   flex-direction: column;
-  /* overflow-y: auto; Removed default overflow */
-  /* min-height: 40vh; Removed default min-height */
+  overflow-y: auto;
 }
 
 .alert {
@@ -127,41 +149,25 @@ body {
   }
 }
 
-
-
-/* Media query for window screen sizes (adjust min-width as needed) */
-@media (min-width: 768px) {
-  .card-wrapper {
-    min-height: calc(100vh - 40px);
-    align-items: flex-start;
-  }
-
-  .card {
-    max-height: 80vh;
-  }
-
-  .card.block-2 {
-    overflow-y: auto;
-    max-height: 80vh;
-  }
-}
-
 /* Header */
 .card-header {
   position: relative;
-  height: 200px;
+  height: 220px;
   display: flex;
   transition: height 0.3s ease;
   flex-shrink: 0;
 }
+
 .card-header-wrapper {
   flex-shrink: 0;
 }
+
 .card-details {
   flex-grow: 1;
   display: flex;
   flex-direction: column;
 }
+
 .card-cover {
   width: 100%;
   height: 100%;
@@ -174,33 +180,17 @@ body {
   transform: scale(1.2);
   transition: 0.5s ease;
 }
+
 .card-avatar {
-  width: 100px;
-  height: 100px;
+  width: 120px;
+  height: 120px;
   border-radius: 50%;
   object-fit: cover;
-  position: absolute;
-  bottom: 0;
-  left: 180px;
+  position: relative;
+  top: 80px;
+  left: 160px;
   transform: translate(-50%, -64px);
-  box-shadow: 0 8px 16px rgba(0, 0, 0, 0.2);
-}
-
-
-
-/* If using Remix Icon instead */
-.avatar-edit-wrapper::after {
-  content: "\ebfc"; /* Pencil-line icon in Remix Icon */
-  font-family: "RemixIcon";
-  font-size: 16px;
-  position: absolute;
-  bottom: 6px;
-  right: 6px;
-  background-color: #516acc;
-  color: #fff;
-  padding: 5px;
-  border-radius: 50%;
-  pointer-events: none;
+  box-shadow: 0 0 18px rgba(0, 0, 0, 0.8);
 }
 
 .card-fullname,
@@ -211,14 +201,16 @@ body {
   text-align: center;
   white-space: nowrap;
 }
+
 .card-fullname {
-  font-size: 22px;
+  font-size: 24px;
   font-weight: 700;
-  bottom: 10px;
+  bottom: 15px;
 }
+
 .card-jobtitle {
-  font-size: 11px;
-  bottom: -2px;
+  font-size: 12px;
+  bottom: -5px;
   opacity: 0.7;
   text-transform: uppercase;
   letter-spacing: 1.5px;
@@ -226,28 +218,32 @@ body {
 
 /* Activated Header */
 .card.is-active .card-header {
-  height: 80px;
+  height: 90px;
 }
+
 .card.is-active .card-cover {
-  height: 100px;
-  top: -50px;
+  height: 120px;
+  top: -60px;
 }
+
 .card.is-active .card-avatar {
   transform: none;
-  left: 20px;
-  width: 50px;
-  height: 50px;
-  bottom: 10px;
+  left: 30px;
+  width: 60px;
+  height: 60px;
+  bottom: 15px;
 }
+
 .card.is-active .card-fullname {
-  left: 86px;
-  font-size: 19px;
-  bottom: 18px;
+  left: 95px;
+  font-size: 20px;
+  bottom: 22px;
 }
+
 .card.is-active .card-jobtitle {
-  left: 86px;
-  font-size: 10px;
-  bottom: 16px;
+  left: 95px;
+  font-size: 11px;
+  bottom: 20px;
   letter-spacing: 1px;
 }
 
@@ -256,22 +252,23 @@ body {
   flex-grow: 1;
   display: flex;
   flex-direction: column;
-  padding: 20px;
-  padding-bottom: 20px;
+  padding: 25px;
+  padding-bottom: 25px;
 }
-
 
 /* Scrollable Sections */
 .card-section {
   display: none;
   flex-grow: 1;
-  padding: 20px;
+  padding: 25px;
   min-height: 0;
 }
+
 .card-section.is-active {
   display: block;
   animation: fadeIn 0.6s ease forwards;
 }
+
 @keyframes fadeIn {
   from {
     opacity: 0;
@@ -283,7 +280,6 @@ body {
   }
 }
 
-/* Buttons at Bottom */
 /* Buttons at Bottom */
 .card-buttons {
   display: flex;
@@ -297,8 +293,8 @@ body {
 
 .card-buttons button {
   flex: 1;
-  padding: 15px;
-  font-size: 13px;
+  padding: 18px;
+  font-size: 14px;
   font-weight: 500;
   border: none;
   background: none;
@@ -306,6 +302,7 @@ body {
   cursor: pointer;
   transition: 0.3s;
 }
+
 .card-buttons button:hover,
 .card-buttons button.is-active {
   color: #2b2c48;
@@ -315,72 +312,81 @@ body {
 
 /* Content Blocks */
 .card-subtitle {
-  font-size: 13px;
+  font-size: 15px;
   font-weight: 700;
-  margin-bottom: 8px;
+  margin-bottom: 10px;
 }
+
 .card-desc {
-  font-size: 14px;
+  font-size: 16px;
   color: #636b6f;
-  line-height: 1.6;
+  line-height: 1.7;
   font-weight: 400;
+  margin-bottom: 20px;
 }
 
 /* Timeline */
 .card-timeline {
-  margin-top: 30px;
+  margin-top: 40px;
   position: relative;
 }
+
 .card-timeline::after {
   content: "";
   position: absolute;
-  left: 42px;
+  left: 45px;
   top: 0;
   width: 2px;
   height: 100%;
   background: linear-gradient(to top, rgba(134, 214, 243, 0) 0%, #516acc 100%);
 }
+
 .card-item {
   position: relative;
-  padding: 0 20px 30px 60px;
+  padding: 0 25px 35px 70px;
 }
+
 .card-item:last-child {
-  padding-bottom: 5px;
+  padding-bottom: 10px;
 }
+
 .card-item::after {
   content: attr(data-year);
   position: absolute;
   top: 0;
-  left: 37px;
-  width: 8px;
-  height: 8px;
+  left: 40px;
+  width: 10px;
+  height: 10px;
   border: 2px solid #fff;
   border-radius: 50%;
-  font-size: 11px;
-  text-indent: -35px;
+  font-size: 12px;
+  text-indent: -40px;
   background: linear-gradient(to bottom, #a0aee3 0%, #516acc 100%);
 }
 
 /* Contact */
 .card-contact-wrapper {
-  margin-top: 20px;
+  margin-top: 25px;
   overflow-y: auto;
 }
+
 .card-contact {
   display: flex;
   align-items: center;
-  font-size: 13px;
+  font-size: 14px;
   color: #6f6f7b;
-  margin-top: 16px;
+  margin-top: 20px;
 }
+
 .card-contact:first-child {
   margin-top: 0;
 }
+
 .card-contact svg {
-  width: 30px;
-  min-height: 34px;
-  margin-right: 12px;
-  padding-right: 12px;
+  width: 35px;
+  min-height: 40px;
+  margin-right: 15px;
+  padding-right: 15px;
   border-right: 1px solid #dfe2ec;
 }
 
@@ -388,11 +394,11 @@ body {
 .contact-me {
   display: block;
   width: 100%;
-  padding: 12px 16px;
-  margin-top: 25px;
+  padding: 14px 18px;
+  margin-top: 30px;
   border: none;
   border-radius: 5px;
-  font-size: 14px;
+  font-size: 16px;
   font-weight: 500;
   color: #fff;
   background: linear-gradient(to right, rgba(83, 200, 239, 0.8), rgba(81, 106, 204, 0.8));
@@ -402,91 +408,457 @@ body {
 
 /* Scrollbar Styles */
 .card.block-2::-webkit-scrollbar {
-  width: 6px;
+  width: 8px;
 }
+
 .card.block-2::-webkit-scrollbar-thumb {
-  background: rgba(0, 0, 0, 0.1);
-  border-radius: 3px;
+  background: rgba(0, 0, 0, 0.15);
+  border-radius: 4px;
 }
 
 .card-social i {
-  font-size: 20px;
-  color: #5c5c6d;
+  font-size: 22px;
+  color: #000000;
   transition: color 0.3s ease;
+  display: inline-block;
+  margin-right: 10px;
 }
+
+.card-social i:last-child {
+  margin-right: 0;
+}
+
 .card-social a:hover i {
   color: #516acc;
 }
 
+.card-contact {
+  display: flex; /* To align icon and text */
+  align-items: center; /* Vertically center items */
+  gap: 15px; /* Space between icon and text (matches margin-right) */
+  padding: 4px 6px; /* Match editable padding */
+  border-radius: 4px; /* Match editable border-radius */
+}
+
 .card-contact i {
-  font-size: 18px;
+  font-size: 20px;
   color: #6f6f7b;
-  margin-right: 12px;
-  padding-right: 12px;
-  border-right: 1px solid #dfe2ec;
-  min-width: 30px;
+  min-width: 35px; /* Maintain icon width */
   text-align: center;
+  /* Remove margin-right, padding-right, and border-right as they are handled by gap */
 }
 
 .editable {
   cursor: text;
   transition: background-color 0.3s ease, box-shadow 0.3s ease;
-  padding: 2px 4px;
-  border-radius: 4px;
+  /* padding is now on .card-contact */
+  /* border-radius is now on .card-contact */
 }
+
 .editable:hover {
   background-color: rgba(138, 132, 255, 0.06);
 }
+
 .editable:focus {
   outline: none;
   background-color: rgba(138, 132, 255, 0.12);
   box-shadow: 0 0 0 2px rgba(138, 132, 255, 0.4);
 }
+
 .editable:empty::before {
   content: attr(data-placeholder);
   color: #aaa;
   font-style: italic;
 }
 
+/* Target the editable text specifically */
+.editable-text {
+  flex-grow: 1; /* Allow text to take up remaining space */
+}
+
+.card-contact:hover {
+  background-color: rgba(138, 132, 255, 0.06);
+}
+
+.card-contact:focus-within { /* Apply focus style when focus is within the card-contact */
+  outline: none;
+  background-color: rgba(138, 132, 255, 0.12);
+  box-shadow: 0 0 0 2px rgba(138, 132, 255, 0.4);
+}
+
+/* Remove save changes button styles */
 #saveProfileWrapper {
-  position: absolute;
-  top: 20px;
-  left: 20px;
-  display: none; /* shown only when editing */
-  z-index: 1000;
+    display: none;
 }
 
 #saveProfileChanges {
-  background-color: #4CAF50;
-  color: white;
-  border: none;
-  padding: 8px 16px;
-  font-size: 14px;
-  border-radius: 6px;
-  cursor: pointer;
-  font-weight: 500;
-  box-shadow: 0 2px 6px rgba(0, 0, 0, 0.1);
+    display: none;
 }
 
-#saveProfileChanges:hover {
-  background-color: #3e9145;
-}
-
-/* Responsive */
+/* Responsive - Styles for smaller screens (tablets and phones) */
 @media (max-width: 800px) {
+  .card-wrapper {
+    padding: 10px;
+    gap: 10px;
+  }
+
   .card.block-1,
   .card.block-2 {
     max-width: 100%;
     flex: 1 1 100%;
   }
-  .card-avatar {
-    width: 70px;
+
+  .card-header {
+    height: 160px;
+  }
+
+  .card.is-active .card-header {
+    height: 70px;
+  }
+
+  .card-cover {
+    height: 80px;
+    top: -40px;
+  }
+
+  .card.is-active .card-cover {
     height: 90px;
+    top: -45px;
   }
-  .card-fullname {
-    font-size: 18px;
+
+  .card-avatar {
+    width: 60px;
+    height: 60px;
+    left: 50%;
+    transform: translate(-50%, -30px);
+    bottom: auto;
   }
-  .card-jobtitle {
-    font-size: 9px;
+
+  .card.is-active .card-avatar {
+    width: 40px;
+    height: 40px;
+    left: 15px;
+    bottom: 10px;
+    transform: none;
   }
+}
+
+/* Edit Profile Modal Styles */
+#editProfileModal {
+    display: none;
+    position: fixed;
+    top: 0;
+    left: 0;
+    width: 100%;
+    height: 100%;
+    background-color: rgba(0, 0, 0, 0.5);
+    z-index: 1000;
+    opacity: 0;
+    transition: opacity 0.3s ease;
+}
+
+#editProfileModal.show {
+    display: block;
+    opacity: 1;
+}
+
+.modal-content {
+    position: relative;
+    background-color: #fff;
+    margin: 5% auto;
+    padding: 20px;
+    width: 90%;
+    max-width: 600px;
+    border-radius: 8px;
+    box-shadow: 0 4px 6px rgba(0, 0, 0, 0.1);
+    animation: modalSlideIn 0.3s ease;
+}
+
+@keyframes modalSlideIn {
+    from {
+        transform: translateY(-20px);
+        opacity: 0;
+    }
+    to {
+        transform: translateY(0);
+        opacity: 1;
+    }
+}
+
+.modal-content h2 {
+    margin-bottom: 20px;
+    color: #333;
+    font-size: 24px;
+    text-align: center;
+}
+
+#editProfileForm {
+    display: flex;
+    flex-direction: column;
+    gap: 15px;
+}
+
+.form-group {
+    display: flex;
+    flex-direction: column;
+    gap: 5px;
+}
+
+.form-group label {
+    font-weight: 500;
+    color: #555;
+    font-size: 14px;
+}
+
+.form-group input,
+.form-group textarea {
+    padding: 10px;
+    border: 1px solid #ddd;
+    border-radius: 4px;
+    font-size: 14px;
+    transition: border-color 0.3s ease;
+}
+
+.form-group input:focus,
+.form-group textarea:focus {
+    outline: none;
+    border-color: #516acc;
+    box-shadow: 0 0 0 2px rgba(81, 108, 204, 0.1);
+}
+
+.modal-buttons {
+    display: flex;
+    justify-content: flex-end;
+    gap: 10px;
+    margin-top: 20px;
+}
+
+.modal-buttons button {
+    padding: 10px 20px;
+    border: none;
+    border-radius: 4px;
+    font-size: 14px;
+    cursor: pointer;
+    transition: background-color 0.3s ease;
+}
+
+.modal-buttons button[type="submit"] {
+    background-color: #516acc;
+    color: white;
+}
+
+.modal-buttons button[type="submit"]:hover {
+    background-color: #3a4d9a;
+}
+
+.modal-buttons .cancel-button {
+    background-color: #f0f0f0;
+    color: #333;
+}
+
+.modal-buttons .cancel-button:hover {
+    background-color: #e0e0e0;
+}
+
+.close-button {
+    position: absolute;
+    top: 10px;
+    right: 10px;
+    font-size: 24px;
+    color: #666;
+    cursor: pointer;
+    background: none;
+    border: none;
+    padding: 5px;
+    line-height: 1;
+    transition: color 0.3s ease;
+}
+
+.close-button:hover {
+    color: #333;
+}
+
+.edit-profile-btn {
+    position: absolute;
+    top: 10px;
+    right: 10px;
+    padding: 8px 16px;
+    background-color: #516acc;
+    color: white;
+    border: none;
+    border-radius: 4px;
+    cursor: pointer;
+    font-size: 14px;
+    display: flex;
+    align-items: center;
+    gap: 5px;
+    transition: background-color 0.3s ease;
+}
+
+.edit-profile-btn:hover {
+    background-color: #3a4d9a;
+}
+
+.edit-profile-btn i {
+    font-size: 16px;
+}
+
+@media (max-width: 768px) {
+    .card-wrapper {
+        padding: 0.5rem;
+        gap: 0.5rem;
+    }
+
+    .card.block-1,
+    .card.block-2 {
+        max-width: 100%;
+        flex: 1 1 100%;
+    }
+
+    .card-header {
+        height: 120px;
+    }
+
+    .card.is-active .card-header {
+        height: 60px;
+    }
+
+    .card-cover {
+        height: 60px;
+        top: -30px;
+    }
+
+    .card.is-active .card-cover {
+        height: 70px;
+        top: -35px;
+    }
+
+    .card-avatar {
+        width: 50px;
+        height: 50px;
+        left: 50%;
+        transform: translate(-50%, -20px);
+    }
+
+    .card.is-active .card-avatar {
+        width: 35px;
+        height: 35px;
+        left: 10px;
+        bottom: 10px;
+        transform: none;
+    }
+
+    .card-social {
+        flex-wrap: wrap;
+        gap: 0.5rem;
+    }
+
+    .card-social i {
+        font-size: 18px;
+    }
+
+    .card-contact {
+        flex-direction: column;
+        align-items: flex-start;
+        gap: 0.5rem;
+    }
+
+    .card-contact i {
+        font-size: 18px;
+    }
+
+    .modal-content {
+        width: 95%;
+        margin: 5% auto;
+        padding: 1rem;
+    }
+
+    .modal-content h2 {
+        font-size: 1.2rem;
+        margin-bottom: 1rem;
+    }
+
+    #editProfileForm {
+        gap: 1rem;
+    }
+
+    .form-group {
+        gap: 0.3rem;
+    }
+
+    .form-group label {
+        font-size: 0.9rem;
+    }
+
+    .form-group input {
+        padding: 0.8rem;
+        font-size: 0.9rem;
+    }
+
+    .modal-buttons {
+        flex-direction: column;
+        gap: 0.5rem;
+    }
+
+    .modal-buttons button {
+        width: 100%;
+    }
+}
+
+/* Small Mobile Devices */
+@media (max-width: 480px) {
+    .card-header {
+        height: 100px;
+    }
+
+    .card.is-active .card-header {
+        height: 50px;
+    }
+
+    .card-cover {
+        height: 50px;
+        top: -25px;
+    }
+
+    .card.is-active .card-cover {
+        height: 60px;
+        top: -30px;
+    }
+
+    .card-avatar {
+        width: 40px;
+        height: 40px;
+    }
+
+    .card.is-active .card-avatar {
+        width: 30px;
+        height: 30px;
+    }
+
+    .card-social i {
+        font-size: 16px;
+    }
+
+    .card-contact i {
+        font-size: 16px;
+    }
+
+    .modal-content {
+        width: 98%;
+        margin: 2% auto;
+        padding: 0.8rem;
+    }
+
+    .modal-content h2 {
+        font-size: 1.1rem;
+    }
+
+    .form-group label {
+        font-size: 0.85rem;
+    }
+
+    .form-group input {
+        padding: 0.7rem;
+        font-size: 0.85rem;
+    }
 }

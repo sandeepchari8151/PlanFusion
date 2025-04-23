@@ -1,0 +1,85 @@
+.notifications-container {
+    max-width: 100%;
+    margin: 20px 0;
+    padding: 0 15px;
+}
+
+.notification {
+    display: flex;
+    align-items: flex-start;
+    padding: 15px;
+    margin-bottom: 15px;
+    border-radius: 8px;
+    background-color: #ffffff;
+    box-shadow: 0 2px 4px rgba(0, 0, 0, 0.1);
+    transition: transform 0.2s ease, box-shadow 0.2s ease;
+}
+
+.notification:hover {
+    transform: translateY(-2px);
+    box-shadow: 0 4px 8px rgba(0, 0, 0, 0.15);
+}
+
+.notification i {
+    font-size: 24px;
+    margin-right: 15px;
+    color: #4CAF50;
+}
+
+.notification.task i {
+    color: #2196F3;
+}
+
+.notification.skill i {
+    color: #FF9800;
+}
+
+.notification.meeting i {
+    color: #9C27B0;
+}
+
+.notification.followup i {
+    color: #E91E63;
+}
+
+.notification.success i {
+    color: #4CAF50;
+}
+
+.notification-content {
+    flex: 1;
+}
+
+.notification h4 {
+    margin: 0 0 5px 0;
+    color: #333333;
+    font-size: 16px;
+    font-weight: 600;
+}
+
+.notification p {
+    margin: 0;
+    color: #666666;
+    font-size: 14px;
+    line-height: 1.4;
+}
+
+/* Responsive styles */
+@media (max-width: 768px) {
+    .notification {
+        padding: 12px;
+    }
+
+    .notification i {
+        font-size: 20px;
+        margin-right: 12px;
+    }
+
+    .notification h4 {
+        font-size: 15px;
+    }
+
+    .notification p {
+        font-size: 13px;
+    }
+} 
