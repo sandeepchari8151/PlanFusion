@@ -521,16 +521,25 @@ function updateNotifications(data) {
     if (!notificationsContainer) return;
 
     // Clear existing notifications
-        notificationsContainer.innerHTML = '';
+    notificationsContainer.innerHTML = '';
 
-    // Add task notifications
+    // Add detailed task notifications
     if (data.task_data.pending_tasks_list && data.task_data.pending_tasks_list.length > 0) {
-        const taskNotification = createNotificationElement(
-            'Tasks',
-            `${data.task_data.pending_tasks_list.length} pending tasks`,
-            'task'
-        );
-        notificationsContainer.appendChild(taskNotification);
+        data.task_data.pending_tasks_list.forEach(task => {
+            let message = '';
+            let dueText = task.due_date ? ` (Due: ${task.due_date})` : '';
+            if (task.priority && task.priority.toLowerCase() === 'high') {
+                message = `⚠️ <b>${task.name}</b>${dueText} — <span style="color:#d32f2f">You have forgotten this high priority task!</span>`;
+            } else {
+                message = `<b>${task.name}</b>${dueText} — Don't forget to complete this task!`;
+            }
+            const taskNotification = createNotificationElement(
+                'Task Reminder',
+                message,
+                'task'
+            );
+            notificationsContainer.appendChild(taskNotification);
+        });
     }
 
     // Add skill notifications
@@ -574,7 +583,6 @@ function updateNotifications(data) {
 function createNotificationElement(title, message, type) {
     const div = document.createElement('div');
     div.className = `notification ${type}`;
-    
     div.innerHTML = `
         <i class="ri-${type}-line notification-icon"></i>
         <div class="notification-content">
@@ -582,7 +590,6 @@ function createNotificationElement(title, message, type) {
             <p>${message}</p>
         </div>
     `;
-    
     return div;
 }
 

@@ -1,5 +1,3 @@
-// external.js
-
 document.addEventListener("DOMContentLoaded", async function () {
     const skillInput = document.getElementById("newSkill");
     const learningSourceInput = document.getElementById("learningSource");
@@ -47,6 +45,79 @@ document.addEventListener("DOMContentLoaded", async function () {
     let currentSkillIdForDocuments = null;
     let currentSkillIdForCertificate = null;
 
+    // --- Platform Links for Learning Source ---
+    const learningPlatforms = {
+      "Infosys Spring": {
+        url: "https://infyspringboard.onwingspan.com/web/en/catalog/courses",
+        supportsSearch: false
+      },
+      "Coursera": {
+        url: "https://www.coursera.org/search?query=",
+        supportsSearch: true
+      },
+      "Udemy": {
+        url: "https://www.udemy.com/courses/search/?q=",
+        supportsSearch: true
+      },
+      "edX": {
+        url: "https://www.edx.org/search?q=",
+        supportsSearch: true
+      },
+      "Pluralsight": {
+        url: "https://www.pluralsight.com/search?q=",
+        supportsSearch: true
+      },
+      "LinkedIn Learning": {
+        url: "https://www.linkedin.com/learning/search?keywords=",
+        supportsSearch: true
+      },
+      "Codecademy": {
+        url: "https://www.codecademy.com/catalog/all?query=",
+        supportsSearch: true
+      },
+      "FreeCodeCamp": {
+        url: "https://www.freecodecamp.org/learn/",
+        supportsSearch: false
+      },
+      "YouTube": {
+        url: "https://www.youtube.com/results?search_query=",
+        supportsSearch: true
+      }
+    };
+
+    // Create or select a container for the link
+    let platformLink = document.getElementById("platformLink");
+    if (!platformLink) {
+      platformLink = document.createElement("a");
+      platformLink.id = "platformLink";
+      platformLink.target = "_blank";
+      platformLink.style.display = "none";
+      platformLink.style.marginTop = "6px";
+      platformLink.style.color = "#8a2be2";
+      learningSourceInput.parentNode.appendChild(platformLink);
+    }
+
+    function updatePlatformLink() {
+      const platform = learningSourceInput.value.trim();
+      const skill = skillInput.value.trim();
+      if (learningPlatforms[platform]) {
+        let url = learningPlatforms[platform].url;
+        if (learningPlatforms[platform].supportsSearch && skill) {
+          url += encodeURIComponent(skill);
+        }
+        platformLink.href = url;
+        platformLink.textContent = learningPlatforms[platform].supportsSearch && skill
+          ? `Search "${platform}" for "${skill}"`
+          : `Go to ${platform} catalog`;
+        platformLink.style.display = "inline-block";
+      } else {
+        platformLink.style.display = "none";
+      }
+    }
+
+    learningSourceInput.addEventListener("input", updatePlatformLink);
+    skillInput.addEventListener("input", updatePlatformLink);
+
     // --- Helper Functions ---
 
     // Display current date
@@ -60,6 +131,7 @@ document.addEventListener("DOMContentLoaded", async function () {
     // Initialize Flatpickr
     flatpickr(".flatpickr", {
         dateFormat: "Y-m-d",
+        enableTime: false
     });
 
     // Function to display suggestions
@@ -111,17 +183,34 @@ document.addEventListener("DOMContentLoaded", async function () {
                 throw new Error(`HTTP error! status: ${response.status}`);
             }
             const data = await response.json();
+            if (!Array.isArray(data)) {
+                throw new Error('Invalid response format: expected array of skills');
+            }
             skillsData = data;
             renderSkills();
+            return data; // Return the data for potential use
         } catch (error) {
             console.error('Error fetching skills:', error);
             alert('Could not load skills. Please try again.');
+            return []; // Return empty array in case of error
         }
     }
 
     // Function to find a skill object by its ID
     function findSkillObject(id) {
-        return skillsData.find(skill => skill._id === id);
+        if (!id) {
+            console.error('Invalid skill ID provided');
+            return null;
+        }
+        const skill = skillsData.find(skill => skill._id === id);
+        if (!skill) {
+            console.error(`Could not find skill object for ID: ${id}`);
+            // Try to refresh the skills data
+            fetchSkills().catch(error => {
+                console.error('Error refreshing skills data:', error);
+            });
+        }
+        return skill;
     }
 
     // Function to find a skill list item element by its ID
@@ -175,8 +264,8 @@ document.addEventListener("DOMContentLoaded", async function () {
                 <div class="skill-header">
                     <div class="skill-name ${skill.completed === 100 ? 'completed' : ''}">${skill.name}</div>
                     <div class="skill-meta">
-                        <span class="skill-level ${skill.level}">${skill.level}</span>
-                        <span class="skill-priority ${skill.priority}">${skill.priority}</span>
+                        <span class="skill-meta skill-priority ${skill.priority || 'medium'}">Priority = ${skill.priority || 'medium'}</span>
+                        <span class="skill-meta skill-level ${skill.level || 'beginner'}">Level = ${skill.level || 'beginner'}</span>
                     </div>
                 </div>
                 
@@ -190,7 +279,14 @@ document.addEventListener("DOMContentLoaded", async function () {
                 <div class="skill-info">
                     <div class="skill-meta">
                         <i class="ri-book-open-line"></i>
-                        <span>From: ${skill.learningFrom}</span>
+                        <span>From: <a href="${skill.learningFrom}" target="_blank" class="learning-source-link">${skill.learningFrom}</a>
+                        ${learningPlatforms[skill.learningFrom] ? 
+                            `<a href="${learningPlatforms[skill.learningFrom].supportsSearch ? 
+                                learningPlatforms[skill.learningFrom].url + encodeURIComponent(skill.name) : 
+                                learningPlatforms[skill.learningFrom].url}" 
+                                target="_blank" class="catalog-link">
+                                ${learningPlatforms[skill.learningFrom].supportsSearch ? 'Search' : 'Go to'} ${skill.learningFrom}
+                            </a>` : ''}</span>
                     </div>
                     <div class="skill-meta">
                         <i class="ri-calendar-line"></i>
@@ -219,7 +315,7 @@ document.addEventListener("DOMContentLoaded", async function () {
                 </button>
                 <button class="notes-button">
                     <i class="ri-sticky-note-line"></i>
-                    <span class="notes-count">${skill.notes ? skill.notes.length : 0}</span>
+                    <span class="notes-count">${Array.isArray(skill.days) ? skill.days.filter(day => day.completed).length : 0}</span>
                 </button>
                 <button class="documents-button">
                     <i class="ri-file-list-line"></i>
@@ -262,6 +358,8 @@ document.addEventListener("DOMContentLoaded", async function () {
         if (fpStart) fpStart.clear();
         const fpEnd = document.querySelector("#expectedEndDate")._flatpickr;
         if (fpEnd) fpEnd.clear();
+        const levelSelect = document.getElementById("skillLevel");
+        if (levelSelect) levelSelect.value = "beginner";
     }
 
     // Function to hide the additional input fields for adding a skill
@@ -302,45 +400,53 @@ document.addEventListener("DOMContentLoaded", async function () {
         } else {
             const skillName = skillInput.value.trim();
             const learningFrom = learningSourceInput.value.trim();
-            const startDate = startDateInput.value;
-            const expectedEndDate = expectedEndDateInput.value;
-
-            if (skillName && learningFrom && startDate && expectedEndDate) {
-                const newSkill = {
-                    name: skillName,
-                    learningFrom: learningFrom,
-                    startDate: startDate,
-                    expectedEndDate: expectedEndDate,
-                    completed: 0,
-                    completionCertificate: null,
-                    notes: [],
-                    documents: []
-                };
-
-                try {
-                    const response = await fetch('/api/skills', {
-                        method: 'POST',
-                        headers: {
-                            'Content-Type': 'application/json',
-                        },
-                        body: JSON.stringify(newSkill),
-                    });
-                    if (!response.ok) {
-                        throw new Error(`HTTP error! status: ${response.status}`);
-                    }
-                    const savedSkill = await response.json();
-                    skillsData.push(savedSkill);
-                    const skillItem = createSkillElement(savedSkill);
-                    skillItem.dataset.skillId = savedSkill._id;
-                    skillList.appendChild(skillItem);
-                    resetInputFields();
-                    hideAdditionalInputs();
-                } catch (error) {
-                    console.error('Error adding skill:', error);
-                    alert('Could not add skill. Please try again.');
-                }
-            } else {
+            const startDate = startDateInput.value.split(' ')[0];
+            const expectedEndDate = expectedEndDateInput.value.split(' ')[0];
+            const prioritySelect = document.getElementById("skillPriority");
+            const levelSelect = document.getElementById("skillLevel");
+            const priority = prioritySelect ? prioritySelect.value : 'medium';
+            const level = levelSelect ? levelSelect.value : 'beginner';
+            const dateRegex = /^\d{4}-\d{2}-\d{2}$/;
+            if (!skillName || !learningFrom || !startDate || !expectedEndDate) {
                 alert('Please fill in all the skill details.');
+                return;
+            }
+            if (!dateRegex.test(startDate) || !dateRegex.test(expectedEndDate)) {
+                alert('Please select valid dates in YYYY-MM-DD format.');
+                return;
+            }
+            const newSkill = {
+                name: skillName,
+                learningFrom: learningFrom,
+                startDate: startDate,
+                expectedEndDate: expectedEndDate,
+                completed: 0,
+                completionCertificate: null,
+                notes: [],
+                documents: [],
+                priority: priority,
+                level: level
+            };
+            try {
+                const response = await fetch('/api/skills', {
+                    method: 'POST',
+                    headers: {
+                        'Content-Type': 'application/json',
+                    },
+                    body: JSON.stringify(newSkill),
+                });
+                if (!response.ok) {
+                    throw new Error(`HTTP error! status: ${response.status}`);
+                }
+                const savedSkill = await response.json();
+                skillsData.push(savedSkill);
+                await fetchSkills();
+                renderSkills();
+                resetInputFields();
+                hideAdditionalInputs();
+            } catch (error) {
+                console.error('Error adding skill:', error);
+                alert('Could not add skill. Please try again.');
             }
         }
     });
@@ -369,7 +475,8 @@ document.addEventListener("DOMContentLoaded", async function () {
                         throw new Error(`HTTP error! status: ${response.status}`);
                     }
                     skillsData = skillsData.filter(skill => skill._id !== skillId);
-                    skillItemElement.remove();
+                    await fetchSkills();
+                    renderSkills();
                 } catch (error) {
                     console.error('Error deleting skill:', error);
                     alert('Could not delete skill. Please try again.');
@@ -395,11 +502,17 @@ document.addEventListener("DOMContentLoaded", async function () {
                     if (index !== -1) {
                         skillsData[index] = updatedSkill;
                     }
+                    await fetchSkills();
+                    renderSkills();
                     const updatedSkillItemElement = findSkillItem(skillId);
                     if (updatedSkillItemElement) {
                         updateSkillDisplay(updatedSkillItemElement, updatedSkill);
                         updatedSkillItemElement.querySelector(".skill-name").classList.toggle("completed", updatedSkill.completed === 100);
                         target.textContent = updatedSkill.completed === 100 ? 'Undo' : 'Complete';
+                        
+                        // Update dashboard immediately
+                        updateSkillProgressBar(updatedSkill);
+                        
                         if (updatedSkill.completed === 100) {
                             currentSkillIdForDocuments = skillId;
                             showDocumentsModal(updatedSkill);
@@ -416,7 +529,12 @@ document.addEventListener("DOMContentLoaded", async function () {
             const skillObject = findSkillObject(skillId);
             if (skillObject) {
                 currentSkillIdForNotes = skillId;
+                if (!skillObject.notes) {
+                    skillObject.notes = []; // Initialize notes array if it doesn't exist
+                }
                 showNotesModal(skillObject);
+            } else {
+                console.error('Could not find skill object for ID:', skillId);
             }
         } else if (target.classList.contains("documents-button")) {
             const skillObject = findSkillObject(skillId);
@@ -464,53 +582,442 @@ document.addEventListener("DOMContentLoaded", async function () {
 
     // --- Notes Modal Logic ---
     function showNotesModal(skill) {
-        notesSkillNameDisplay.textContent = skill.name;
-        notesList.innerHTML = ''; // Clear previous notes
-        skill.notes.forEach(note => {
-            const noteItem = document.createElement('div');
-            noteItem.classList.add('note-item');
-            noteItem.innerHTML = `<p><strong class="note-date">${note.date}:</strong> ${note.content}</p>`;
-            notesList.appendChild(noteItem);
-        });
-        newNoteInput.value = '';
+        if (!notesModal || !notesSkillNameDisplay || !notesList) {
+            console.error('Required modal elements not found');
+            return;
+        }
+
+        // Add icon to the title
+        notesSkillNameDisplay.innerHTML = `<i class="ri-book-open-line"></i> ${skill.name}`;
+        notesList.innerHTML = '';
+
+        if (skill.days && Array.isArray(skill.days)) {
+            skill.days.forEach((day, i) => {
+                const dayDiv = document.createElement('div');
+                dayDiv.classList.add('day-note-item');
+                
+                // Format the date nicely
+                const dateObj = new Date(day.date);
+                const formattedDate = dateObj.toLocaleDateString('en-US', {
+                    weekday: 'long',
+                    year: 'numeric',
+                    month: 'long',
+                    day: 'numeric'
+                });
+
+                dayDiv.innerHTML = `
+                    <div>
+                        <strong>${formattedDate}</strong>
+                        <div class="note-content">
+                            <textarea class="day-note-textarea" data-day-index="${i}" 
+                                placeholder="What did you learn today?">${day.note || ''}</textarea>
+                            <div class="note-actions">
+                                <button class="edit-note-btn" data-day-index="${i}">
+                                    <span><i class="ri-edit-line"></i> Edit</span>
+                                </button>
+                                <button class="complete-day-btn" data-day-index="${i}" ${day.completed ? 'disabled' : ''}>
+                                    <span><i class="ri-check-line"></i> ${day.completed ? 'Completed' : 'Complete Today\'s Learning'}</span>
+                                </button>
+                            </div>
+                        </div>
+                    </div>
+                `;
+                notesList.appendChild(dayDiv);
+            });
+
+            // Add event listeners for edit buttons
+            notesList.querySelectorAll('.edit-note-btn').forEach(btn => {
+                btn.addEventListener('click', function() {
+                    const dayIndex = parseInt(this.getAttribute('data-day-index'));
+                    const textarea = notesList.querySelector(`.day-note-textarea[data-day-index="${dayIndex}"]`);
+                    const noteActions = this.closest('.note-actions');
+                    const day = skill.days[dayIndex];
+                    
+                    // Create edit controls
+                    const editControls = document.createElement('div');
+                    editControls.classList.add('edit-controls');
+                    editControls.innerHTML = `
+                        <button class="save-note-edit-btn" data-day-index="${dayIndex}">
+                            <i class="ri-save-line"></i>
+                            Save
+                        </button>
+                        <button class="cancel-note-edit-btn" data-day-index="${dayIndex}">
+                            <i class="ri-close-line"></i>
+                            Cancel
+                        </button>
+                    `;
+                    
+                    // Store original value
+                    textarea.dataset.originalValue = textarea.value;
+                    
+                    // Enable textarea and add focus
+                    textarea.readOnly = false;
+                    textarea.focus();
+                    
+                    // Replace note actions with edit controls
+                    noteActions.replaceWith(editControls);
+                    
+                    // Add event listeners for save and cancel
+                    const saveBtn = editControls.querySelector('.save-note-edit-btn');
+                    const cancelBtn = editControls.querySelector('.cancel-note-edit-btn');
+                    
+                    saveBtn.addEventListener('click', async function() {
+                        const dayIndex = parseInt(this.getAttribute('data-day-index'));
+                        const textarea = notesList.querySelector(`.day-note-textarea[data-day-index="${dayIndex}"]`);
+                        const note = textarea.value.trim();
+                        const day = skill.days[dayIndex];
+                        
+                        try {
+                            // Show saving state
+                            this.disabled = true;
+                            this.innerHTML = '<i class="ri-loader-4-line"></i> Saving...';
+                            
+                            const response = await fetch(`/api/skills/${skill._id}/day/${day.date}`, {
+                                method: 'PUT',
+                                headers: { 
+                                    'Content-Type': 'application/json',
+                                    'Accept': 'application/json'
+                                },
+                                body: JSON.stringify({ 
+                                    note: note,
+                                    completed: day.completed
+                                })
+                            });
+                            
+                            if (!response.ok) {
+                                throw new Error(`HTTP error! status: ${response.status}`);
+                            }
+                            
+                            const updatedSkill = await response.json();
+                            
+                            // Update local data
+                            const skillIndex = skillsData.findIndex(s => s._id === skill._id);
+                            if (skillIndex !== -1) {
+                                skillsData[skillIndex] = updatedSkill;
+                            }
+                            
+                            // Update the note count in the skill list item
+                            const skillItem = document.querySelector(`.skill-item[data-skill-id="${skill._id}"]`);
+                            if (skillItem) {
+                                const notesCountElement = skillItem.querySelector('.notes-count');
+                                if (notesCountElement) {
+                                    const completedDays = updatedSkill.days.filter(day => day.completed).length;
+                                    notesCountElement.textContent = completedDays;
+                                }
+                            }
+                            
+                            // Show success state
+                            this.innerHTML = '<i class="ri-check-line"></i> Saved!';
+                            setTimeout(() => {
+                                showNotesModal(updatedSkill); // Refresh modal
+                            }, 1000);
+                            
+                        } catch (error) {
+                            console.error('Error saving note:', error);
+                            // Show error state
+                            this.innerHTML = '<i class="ri-error-warning-line"></i> Failed';
+                            setTimeout(() => {
+                                this.innerHTML = '<i class="ri-save-line"></i> Save';
+                                this.disabled = false;
+                            }, 2000);
+                            alert('Failed to save note. Please try again.');
+                        }
+                    });
+                    
+                    cancelBtn.addEventListener('click', function() {
+                        const dayIndex = parseInt(this.getAttribute('data-day-index'));
+                        const textarea = notesList.querySelector(`.day-note-textarea[data-day-index="${dayIndex}"]`);
+                        const day = skill.days[dayIndex];
+                        
+                        // Restore original value
+                        textarea.value = textarea.dataset.originalValue;
+                        textarea.readOnly = true;
+                        
+                        // Restore note actions
+                        const noteActions = document.createElement('div');
+                        noteActions.classList.add('note-actions');
+                        noteActions.innerHTML = `
+                            <button class="edit-note-btn" data-day-index="${dayIndex}">
+                                <span><i class="ri-edit-line"></i> Edit</span>
+                            </button>
+                            <button class="complete-day-btn" data-day-index="${dayIndex}" ${day.completed ? 'disabled' : ''}>
+                                <span><i class="ri-check-line"></i> ${day.completed ? 'Completed' : 'Complete Today\'s Learning'}</span>
+                            </button>
+                        `;
+                        
+                        editControls.replaceWith(noteActions);
+                    });
+                });
+            });
+
+            // Add event listeners for complete buttons
+            notesList.querySelectorAll('.complete-day-btn').forEach(btn => {
+                btn.addEventListener('click', async function() {
+                    const dayIndex = parseInt(this.getAttribute('data-day-index'));
+                    const textarea = notesList.querySelector(`.day-note-textarea[data-day-index="${dayIndex}"]`);
+                    const note = textarea.value.trim();
+                    const day = skill.days[dayIndex];
+                    
+                    // Check if the day's date is today
+                    const today = new Date();
+                    today.setHours(0, 0, 0, 0);
+                    const dayDate = new Date(day.date);
+                    dayDate.setHours(0, 0, 0, 0);
+                    
+                    if (dayDate.getTime() !== today.getTime()) {
+                        alert('You can only complete today\'s learning for the current date.');
+                        return;
+                    }
+                    
+                    // Add loading state
+                    this.disabled = true;
+                    const isCompleting = !day.completed;
+                    this.innerHTML = `<i class="ri-loader-4-line"></i> ${isCompleting ? 'Completing...' : 'Undoing...'}`;
+                    
+                    try {
+                        const response = await fetch(`/api/skills/${skill._id}/day/${day.date}`, {
+                            method: 'PUT',
+                            headers: { 'Content-Type': 'application/json' },
+                            body: JSON.stringify({ 
+                                note: note, 
+                                completed: isCompleting 
+                            })
+                        });
+                        
+                        if (!response.ok) throw new Error('Failed to update day');
+                        
+                        const updatedSkill = await response.json();
+                        
+                        // Update local data and UI
+                        const skillIndex = skillsData.findIndex(s => s._id === skill._id);
+                        if (skillIndex !== -1) {
+                            skillsData[skillIndex] = updatedSkill;
+                            
+                            // Update the note count in the skill list item
+                            const skillItem = document.querySelector(`.skill-item[data-skill-id="${skill._id}"]`);
+                            if (skillItem) {
+                                const notesCountElement = skillItem.querySelector('.notes-count');
+                                if (notesCountElement) {
+                                    const completedDays = updatedSkill.days.filter(day => day.completed).length;
+                                    notesCountElement.textContent = completedDays;
+                                }
+                            }
+                        }
+                        
+                        // Show success animation
+                        this.innerHTML = `<i class="ri-check-line"></i> ${isCompleting ? 'Completed!' : 'Undone!'}`;
+                        setTimeout(() => {
+                            showNotesModal(updatedSkill); // Refresh modal
+                            updateSkillProgressBar(updatedSkill); // Update progress bar
+                        }, 1000);
+                        
+                    } catch (error) {
+                        console.error('Error updating day:', error);
+                        // Show error state
+                        this.innerHTML = '<i class="ri-error-warning-line"></i> Failed';
+                        setTimeout(() => {
+                            this.innerHTML = `<i class="ri-check-line"></i> ${day.completed ? 'Undo Completion' : 'Complete Today\'s Learning'}`;
+                            this.disabled = false;
+                        }, 2000);
+                        alert('Failed to update day. Please try again.');
+                    }
+                });
+            });
+
+            // Update the button text based on completion status when creating the button
+            const completeButtons = notesList.querySelectorAll('.complete-day-btn');
+            completeButtons.forEach(btn => {
+                const dayIndex = parseInt(btn.getAttribute('data-day-index'));
+                const day = skill.days[dayIndex];
+                btn.innerHTML = `<span><i class="ri-check-line"></i> ${day.completed ? 'Undo Completion' : 'Complete Today\'s Learning'}</span>`;
+                btn.disabled = day.completed && new Date(day.date).toDateString() !== new Date().toDateString();
+                
+                // Add custom styling to the button
+                btn.style.cssText = `
+                    background: ${day.completed ? '#f0f0f0' : '#8a2be2'};
+                    color: ${day.completed ? '#666' : 'white'};
+                    border: none;
+                    padding: 8px 16px;
+                    border-radius: 4px;
+                    cursor: pointer;
+                    transition: all 0.3s ease;
+                    font-size: 14px;
+                    display: flex;
+                    align-items: center;
+                    gap: 8px;
+                `;
+                
+                // Add hover effect
+                btn.onmouseover = function() {
+                    if (!this.disabled) {
+                        this.style.background = day.completed ? '#e0e0e0' : '#7b1fa2';
+                        this.style.transform = 'translateY(-1px)';
+                    }
+                };
+                
+                btn.onmouseout = function() {
+                    this.style.background = day.completed ? '#f0f0f0' : '#8a2be2';
+                    this.style.transform = 'translateY(0)';
+                };
+            });
+
+            // Add real-time note saving on blur
+            notesList.querySelectorAll('.day-note-textarea').forEach(textarea => {
+                textarea.addEventListener('blur', async function() {
+                    const dayIndex = parseInt(this.getAttribute('data-day-index'));
+                    const note = this.value.trim();
+                    const day = skill.days[dayIndex];
+                    
+                    if (day.completed) return;
+                    
+                    try {
+                        // Show saving indicator without changing the text
+                        const originalValue = this.value;
+                        const originalPlaceholder = this.placeholder;
+                        this.placeholder = 'Saving...';
+                        
+                        await fetch(`/api/skills/${skill._id}/day/${day.date}`, {
+                            method: 'PUT',
+                            headers: { 'Content-Type': 'application/json' },
+                            body: JSON.stringify({ note: note, completed: false })
+                        });
+                        
+                        // Show saved indicator briefly
+                        this.placeholder = 'Saved!';
+                        setTimeout(() => {
+                            this.placeholder = originalPlaceholder;
+                        }, 1000);
+                        
+                    } catch (error) {
+                        // Show error state
+                        const originalPlaceholder = this.placeholder;
+                        this.placeholder = 'Failed to save';
+                        setTimeout(() => {
+                            this.placeholder = originalPlaceholder;
+                        }, 2000);
+                    }
+                });
+            });
+        } else {
+            notesList.innerHTML = '<div class="no-days-message">No days found for this skill.</div>';
+        }
+
+        // Add animation when showing modal
         notesModal.classList.add("show");
     }
 
-    saveNoteButton.addEventListener("click", async function () {
-        if (currentSkillIdForNotes) {
-            const noteContent = newNoteInput.value.trim();
-            if (noteContent) {
-                const skill = findSkillObject(currentSkillIdForNotes);
-                if (skill) {
-                    const today = new Date().toISOString().slice(0, 10); // Get current date in YYYY-MM-DD format
-                    const newNote = { date: today, content: noteContent };
-                    skill.notes.push(newNote);
-                    try {
-                        const response = await fetch(`/api/skills/${currentSkillIdForNotes}`, {
-                            method: 'PUT',
-                            headers: {
-                                'Content-Type': 'application/json',
-                            },
-                            body: JSON.stringify({ notes: skill.notes }),
-                        });
-                        if (!response.ok) {
-                            throw new Error(`HTTP error! status: ${response.status}`);
-                        }
-                        const updatedSkill = await response.json();
-                        const index = skillsData.findIndex(s => s._id === updatedSkill._id);
-                        if (index !== -1) {
-                            skillsData[index] = updatedSkill;
-                        }
-                        showNotesModal(updatedSkill); // Refresh the notes display
-                    } catch (error) {
-                        console.error('Error saving note:', error);
-                        alert('Could not save note. Please try again.');
-                    }
-                    newNoteInput.value = '';
-                }
-            }
+    function updateSkillProgressBar(skill) {
+        // Find the skill item in the DOM and update the progress bar and percentage
+        const skillItem = document.querySelector(`.skill-item[data-skill-id="${skill._id}"]`);
+        if (skillItem) {
+            const progressBar = skillItem.querySelector('.progress-bar');
+            const progressText = skillItem.querySelector('.progress-text');
+            if (progressBar) progressBar.style.width = `${skill.completed}%`;
+            if (progressText) progressText.textContent = `${skill.completed}%`;
         }
-    });
+
+        // Update dashboard progress
+        fetch('/dashboard_data')
+            .then(response => response.json())
+            .then(data => {
+                // Update skill stats in the dashboard
+                const skillStats = document.querySelectorAll('.skill-stats .stat-value');
+                if (skillStats.length >= 2) {
+                    skillStats[0].textContent = data.skill_data.completed; // Mastered
+                    skillStats[1].textContent = data.skill_data.in_progress; // In Progress
+                }
+
+                // Update progress circle
+                const progressCircles = document.querySelectorAll('.progress');
+                progressCircles.forEach(circle => {
+                    if (circle.nextElementSibling && circle.nextElementSibling.textContent.includes('developed')) {
+                        circle.style.background = `conic-gradient(#8a2be2 ${data.skill_data.completion_percentage}%, #ddd ${data.skill_data.completion_percentage}%)`;
+                        circle.nextElementSibling.textContent = `${data.skill_data.completion_percentage}% developed`;
+                    }
+                });
+
+                // Update skill count in the dashboard card
+                const skillCountElements = document.querySelectorAll('.card h2');
+                skillCountElements.forEach(element => {
+                    if (element.nextElementSibling && element.nextElementSibling.textContent.includes('Developed Skills')) {
+                        element.textContent = data.skill_data.completed;
+                    }
+                });
+            })
+            .catch(error => {
+                console.error('Error updating dashboard progress:', error);
+            });
+    }
+
+    if (saveNoteButton) {
+        saveNoteButton.addEventListener('click', async () => {
+            const noteText = newNoteInput.value.trim();
+            if (!noteText) return;
+
+            try {
+                // Show loading state
+                saveNoteButton.disabled = true;
+                saveNoteButton.innerHTML = '<i class="ri-loader-4-line"></i> Saving...';
+
+                // Get the current skill object
+                const skill = findSkillObject(currentSkillIdForNotes);
+                if (!skill) {
+                    throw new Error('Skill not found');
+                }
+
+                // Initialize notes array if it doesn't exist
+                if (!skill.notes) {
+                    skill.notes = [];
+                }
+
+                // Add the new note to the local skill object
+                skill.notes.push({
+                    text: noteText,
+                    timestamp: new Date().toISOString()
+                });
+
+                // Update the local skillsData array
+                const skillIndex = skillsData.findIndex(s => s._id === skill._id);
+                if (skillIndex !== -1) {
+                    skillsData[skillIndex] = skill;
+                }
+
+                // Send the update to the server
+                const response = await fetch(`/api/skills/${skill._id}`, {
+                    method: 'PUT',
+                    headers: {
+                        'Content-Type': 'application/json'
+                    },
+                    body: JSON.stringify({
+                        notes: skill.notes
+                    })
+                });
+
+                if (!response.ok) {
+                    throw new Error('Failed to save note');
+                }
+
+                // Show success state
+                saveNoteButton.innerHTML = '<i class="ri-check-line"></i> Saved!';
+                setTimeout(() => {
+                    // Update the UI with the new note
+                    showNotesModal(skill);
+                    newNoteInput.value = '';
+                    saveNoteButton.disabled = false;
+                    saveNoteButton.innerHTML = '<i class="ri-save-line"></i> Save Note';
+                }, 1000);
+
+            } catch (error) {
+                console.error('Error saving note:', error);
+                saveNoteButton.innerHTML = '<i class="ri-error-warning-line"></i> Failed';
+                setTimeout(() => {
+                    saveNoteButton.disabled = false;
+                    saveNoteButton.innerHTML = '<i class="ri-save-line"></i> Save Note';
+                }, 2000);
+                alert('Failed to save note. Please try again.');
+            }
+        });
+    }
 
     if (closeNotesModal) {
         closeNotesModal.addEventListener("click", function () {
@@ -537,19 +1044,16 @@ document.addEventListener("DOMContentLoaded", async function () {
         // Handle certificate display
         const certificateDisplay = document.getElementById("certificateDisplay");
         const certificateLinkDisplay = document.getElementById("certificateLink");
-        const deleteCertificateButton = document.getElementById("deleteCertificateButton");
         
-        if (certificateDisplay && certificateLinkDisplay && deleteCertificateButton) {
+        if (certificateDisplay && certificateLinkDisplay) {
             if (skill.completionCertificate) {
                 certificateLinkDisplay.textContent = skill.completionCertificate.split('/').pop();
                 certificateLinkDisplay.href = skill.completionCertificate;
                 certificateDisplay.style.display = "block";
-                deleteCertificateButton.style.display = "flex";
             } else {
                 certificateLinkDisplay.textContent = "No certificate added";
                 certificateLinkDisplay.href = "#";
                 certificateDisplay.style.display = "block";
-                deleteCertificateButton.style.display = "none";
             }
         }
 
@@ -583,124 +1087,6 @@ document.addEventListener("DOMContentLoaded", async function () {
         documentsModalElement.classList.add("show");
     }
     
-    // Add event listener for certificate upload
-    document.getElementById("uploadCertificateButton").addEventListener("click", async function() {
-        const file = document.getElementById("uploadCertificate").files[0];
-        if (!file) {
-            alert('Please select a certificate file to upload.');
-            return;
-        }
-
-        const formData = new FormData();
-        formData.append('document', file);
-        formData.append('skillId', currentSkillIdForDocuments);
-        formData.append('isCertificate', 'true'); // Flag to indicate this is a certificate
-
-        try {
-            const response = await fetch('/api/upload_document', {
-                method: 'POST',
-                body: formData,
-            });
-
-            if (!response.ok) {
-                throw new Error(`HTTP error! status: ${response.status}`);
-            }
-
-            const result = await response.json();
-            const skill = findSkillObject(currentSkillIdForDocuments);
-            if (skill) {
-                skill.completionCertificate = result.url;
-                const index = skillsData.findIndex(s => s._id === currentSkillIdForDocuments);
-                if (index !== -1) {
-                    skillsData[index] = skill;
-                }
-                showDocumentsModal(skill);
-                alert('Certificate uploaded successfully!');
-            }
-        } catch (error) {
-            console.error('Error uploading certificate:', error);
-            alert('Could not upload certificate. Please try again.');
-        }
-    });
-    
-    // Add event listener for certificate deletion
-    document.getElementById("deleteCertificateButton").addEventListener("click", async function() {
-        if (!confirm('Are you sure you want to delete this certificate?')) {
-            return;
-        }
-
-        try {
-            const skill = findSkillObject(currentSkillIdForDocuments);
-            if (skill) {
-                skill.completionCertificate = null;
-                const response = await fetch(`/api/skills/${currentSkillIdForDocuments}`, {
-                    method: 'PUT',
-                    headers: {
-                        'Content-Type': 'application/json',
-                    },
-                    body: JSON.stringify({ completionCertificate: null }),
-                });
-
-                if (!response.ok) {
-                    throw new Error(`HTTP error! status: ${response.status}`);
-                }
-
-                const updatedSkill = await response.json();
-                const index = skillsData.findIndex(s => s._id === updatedSkill._id);
-                if (index !== -1) {
-                    skillsData[index] = updatedSkill;
-                }
-                showDocumentsModal(updatedSkill);
-                alert('Certificate deleted successfully!');
-            }
-        } catch (error) {
-            console.error('Error deleting certificate:', error);
-            alert('Could not delete certificate. Please try again.');
-        }
-    });
-
-    // Add event listener for document upload
-    document.getElementById("uploadDocumentButton").addEventListener("click", async function() {
-        const file = document.getElementById("uploadNewDocument").files[0];
-        if (!file) {
-            alert('Please select a document to upload.');
-            return;
-        }
-
-        const formData = new FormData();
-        formData.append('document', file);
-        formData.append('skillId', currentSkillIdForDocuments);
-
-        try {
-            const response = await fetch('/api/upload_document', {
-                method: 'POST',
-                body: formData,
-            });
-
-            if (!response.ok) {
-                throw new Error(`HTTP error! status: ${response.status}`);
-            }
-
-            const result = await response.json();
-            const skill = findSkillObject(currentSkillIdForDocuments);
-            if (skill) {
-                if (!skill.documents) {
-                    skill.documents = [];
-                }
-                skill.documents.push(result.url);
-                const index = skillsData.findIndex(s => s._id === currentSkillIdForDocuments);
-                if (index !== -1) {
-                    skillsData[index] = skill;
-                }
-                showDocumentsModal(skill);
-                alert('Document uploaded successfully!');
-            }
-        } catch (error) {
-            console.error('Error uploading document:', error);
-            alert('Could not upload document. Please try again.');
-        }
-    });
-
     // Function to handle document deletion
     async function deleteDocument(skillId, documentIndex) {
         if (!confirm('Are you sure you want to delete this document?')) {
@@ -727,6 +1113,15 @@ document.addEventListener("DOMContentLoaded", async function () {
                 const index = skillsData.findIndex(s => s._id === updatedSkill._id);
                 if (index !== -1) {
                     skillsData[index] = updatedSkill;
+                    
+                    // Update the document count in the skill list item
+                    const skillItem = document.querySelector(`.skill-item[data-skill-id="${skillId}"]`);
+                    if (skillItem) {
+                        const documentsCountElement = skillItem.querySelector('.documents-count');
+                        if (documentsCountElement) {
+                            documentsCountElement.textContent = updatedSkill.documents ? updatedSkill.documents.length : 0;
+                        }
+                    }
                 }
                 showDocumentsModal(updatedSkill);
                 alert('Document deleted successfully!');
@@ -735,6 +1130,124 @@ document.addEventListener("DOMContentLoaded", async function () {
             console.error('Error deleting document:', error);
             alert('Could not delete document. Please try again.');
         }
+    }
+
+    // Add event listener for document upload
+    if (uploadDocumentButton) {
+        // Style the upload button to match certificate upload
+        uploadDocumentButton.style.cssText = `
+            background: #8a2be2;
+            color: white;
+            border: none;
+            padding: 8px 16px;
+            border-radius: 4px;
+            cursor: pointer;
+            transition: all 0.3s ease;
+            font-size: 14px;
+            display: flex;
+            align-items: center;
+            gap: 8px;
+            margin-top: 10px;
+        `;
+
+        // Add hover effect
+        uploadDocumentButton.onmouseover = function() {
+            this.style.background = '#7b1fa2';
+            this.style.transform = 'translateY(-1px)';
+        };
+        
+        uploadDocumentButton.onmouseout = function() {
+            this.style.background = '#8a2be2';
+            this.style.transform = 'translateY(0)';
+        };
+
+        // Style the file input container
+        const uploadContainer = uploadNewDocumentInput.parentElement;
+        if (uploadContainer) {
+            uploadContainer.style.cssText = `
+                display: flex;
+                flex-direction: column;
+                gap: 10px;
+                margin-top: 15px;
+                padding: 15px;
+                background: #f8f8f8;
+                border-radius: 8px;
+            `;
+        }
+
+        // Style the file input
+        uploadNewDocumentInput.style.cssText = `
+            padding: 8px;
+            border: 1px solid #ddd;
+            border-radius: 4px;
+            font-size: 14px;
+            width: 100%;
+            box-sizing: border-box;
+        `;
+
+        uploadDocumentButton.addEventListener("click", async function() {
+            const file = document.getElementById("uploadNewDocument").files[0];
+            if (!file) {
+                alert('Please select a document to upload.');
+                return;
+            }
+
+            // Add loading state
+            this.disabled = true;
+            this.innerHTML = '<i class="ri-loader-4-line"></i> Uploading...';
+
+            const formData = new FormData();
+            formData.append('document', file);
+            formData.append('skillId', currentSkillIdForDocuments);
+            try {
+                const response = await fetch('/api/upload_document', {
+                    method: 'POST',
+                    body: formData,
+                });
+                if (!response.ok) {
+                    throw new Error(`HTTP error! status: ${response.status}`);
+                }
+                const result = await response.json();
+                const skill = findSkillObject(currentSkillIdForDocuments);
+                if (skill) {
+                    if (!skill.documents) {
+                        skill.documents = [];
+                    }
+                    skill.documents.push(result.url);
+                    const index = skillsData.findIndex(s => s._id === currentSkillIdForDocuments);
+                    if (index !== -1) {
+                        skillsData[index] = skill;
+                        
+                        // Update the document count in the skill list item
+                        const skillItem = document.querySelector(`.skill-item[data-skill-id="${currentSkillIdForDocuments}"]`);
+                        if (skillItem) {
+                            const documentsCountElement = skillItem.querySelector('.documents-count');
+                            if (documentsCountElement) {
+                                documentsCountElement.textContent = skill.documents.length;
+                            }
+                        }
+                    }
+                    showDocumentsModal(skill);
+                    
+                    // Show success state
+                    this.innerHTML = '<i class="ri-check-line"></i> Uploaded!';
+                    setTimeout(() => {
+                        this.innerHTML = '<i class="ri-upload-line"></i> Upload Document';
+                        this.disabled = false;
+                        uploadNewDocumentInput.value = ''; // Clear the file input
+                    }, 1000);
+                }
+            } catch (error) {
+                console.error('Error uploading document:', error);
+                // Show error state
+                this.innerHTML = '<i class="ri-error-warning-line"></i> Failed';
+                setTimeout(() => {
+                    this.innerHTML = '<i class="ri-upload-line"></i> Upload Document';
+                    this.disabled = false;
+                }, 2000);
+                alert('Could not upload document. Please try again.');
+            }
+        });
     }
     
     if (closeDocumentsModal) {
@@ -825,15 +1338,6 @@ document.addEventListener("DOMContentLoaded", async function () {
         displaySourceSuggestions(filteredSuggestions);
     });
 
-    // Add event listener for skill tags input
-    document.getElementById("skillTags").addEventListener("keydown", function(e) {
-        if (e.key === 'Enter' || e.key === ',') {
-            e.preventDefault();
-            const tags = this.value.split(',').map(tag => tag.trim()).filter(tag => tag);
-            this.value = tags.join(', ');
-        }
-    });
-
     // Function to handle skill editing
     async function editSkill(skillId) {
         const skill = findSkillObject(skillId);
@@ -846,7 +1350,6 @@ document.addEventListener("DOMContentLoaded", async function () {
         document.getElementById("learningSource").value = skill.learningFrom;
         document.getElementById("skillLevel").value = skill.level;
         document.getElementById("skillPriority").value = skill.priority;
-        document.getElementById("skillTags").value = skill.tags ? skill.tags.join(', ') : '';
 
         // Show the form
         document.querySelector(".additional-inputs").style.display = "flex";
@@ -865,7 +1368,6 @@ document.addEventListener("DOMContentLoaded", async function () {
                 learningFrom: document.getElementById("learningSource").value.trim(),
                 level: document.getElementById("skillLevel").value,
                 priority: document.getElementById("skillPriority").value,
-                tags: document.getElementById("skillTags").value.split(',').map(tag => tag.trim()).filter(tag => tag),
                 completed: skill.completed,
                 notes: skill.notes,
                 documents: skill.documents
@@ -889,6 +1391,7 @@ document.addEventListener("DOMContentLoaded", async function () {
                 if (index !== -1) {
                     skillsData[index] = updatedSkillData;
                 }
+                await fetchSkills();
                 renderSkills();
                 resetInputFields();
                 hideAdditionalInputs();

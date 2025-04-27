@@ -8,7 +8,7 @@
     <!-- Preload critical resources -->
     <link rel="preload" href="{{ url_for('static', filename='css/login.css') }}" as="style">
     <link rel="preload" href="https://fonts.googleapis.com/css2?family=Poppins:wght@400;500;600&display=swap" as="style">
-    <link rel="preload" href="https://unpkg.com/ionicons@7.1.0/dist/ionicons/ionicons.esm.js" as="script">
+    <link rel="preload" href="https://unpkg.com/ionicons@7.1.0/dist/ionicons/ionicons.esm.js" as="script" crossorigin="anonymous">
     
     <!-- Load CSS -->
     <link rel="stylesheet" href="{{ url_for('static', filename='css/login.css') }}">
@@ -49,6 +49,65 @@
         
         .content.loaded {
             opacity: 1;
+        }
+
+        /* Flash message styles */
+        .flashes {
+            list-style-type: none;
+            padding: 0;
+            margin: 0;
+            position: fixed;
+            top: 20px;
+            left: 50%;
+            transform: translateX(-50%);
+            width: 90%;
+            max-width: 400px;
+            z-index: 1000;
+            animation: slideDown 0.5s ease-out;
+        }
+
+        @keyframes slideDown {
+            from {
+                transform: translate(-50%, -100%);
+                opacity: 0;
+            }
+            to {
+                transform: translate(-50%, 0);
+                opacity: 1;
+            }
+        }
+
+        .flashes li {
+            padding: 15px 20px;
+            margin-bottom: 10px;
+            border-radius: 8px;
+            font-weight: 500;
+            text-align: center;
+            box-shadow: 0 4px 6px rgba(0, 0, 0, 0.1);
+            animation: fadeIn 0.5s ease-out;
+        }
+
+        @keyframes fadeIn {
+            from { opacity: 0; }
+            to { opacity: 1; }
+        }
+
+        .flashes .success {
+            background-color: #d4edda;
+            color: #155724;
+            border: 1px solid #c3e6cb;
+        }
+
+        .flashes .danger {
+            background-color: #f8d7da;
+            color: #721c24;
+            border: 1px solid #f5c6cb;
+        }
+
+        .flashes .warning {
+            background-color: #fff3cd;
+            color: #856404;
+            border: 1px solid #ffeeba;
         }
     </style>
 </head>
@@ -114,8 +173,8 @@
     </section>
 
     <!-- Load scripts -->
-    <script type="module" src="https://unpkg.com/ionicons@7.1.0/dist/ionicons/ionicons.esm.js"></script>
-    <script nomodule src="https://unpkg.com/ionicons@7.1.0/dist/ionicons/ionicons.js"></script>
+    <script type="module" src="https://unpkg.com/ionicons@7.1.0/dist/ionicons/ionicons.esm.js" crossorigin="anonymous"></script>
+    <script nomodule src="https://unpkg.com/ionicons@7.1.0/dist/ionicons/ionicons.js" crossorigin="anonymous"></script>
     
     <!-- Loading and initialization script -->
     <script>
@@ -141,13 +200,17 @@
                 }
             });
 
-            // Hide flash messages after 2 seconds
+            // Hide flash messages after 5 seconds with fade out animation
             setTimeout(function() {
                 let flashMessages = document.querySelector(".flashes");
                 if (flashMessages) {
-                    flashMessages.style.display = "none";
+                    flashMessages.style.opacity = "0";
+                    flashMessages.style.transition = "opacity 0.5s ease-out";
+                    setTimeout(() => {
+                        flashMessages.style.display = "none";
+                    }, 500);
                 }
-            }, 2000);
+            }, 5000);
         });
     </script>
 </body>

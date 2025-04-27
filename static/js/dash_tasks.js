@@ -9,8 +9,11 @@ document.addEventListener("DOMContentLoaded", function () {
     let selectedPriority = "";
     let selectedDueDate = "";
     let selectedReminder = "";
-    let selectedLabel = "";
     let completedTasks = 0, remainingTasks = 0;
+
+    // Declare Flatpickr instances in a higher scope
+    let dueDatePicker;
+    let reminderPicker;
 
     // 🛠️ Initialize page
     resetDropdowns();
@@ -68,27 +71,36 @@ document.addEventListener("DOMContentLoaded", function () {
     if (dropdownToggles.length > 0) {
         dropdownToggles.forEach(button => {
             button.addEventListener("click", function (event) {
+                event.preventDefault();
                 event.stopPropagation();
-                let dropdownId = this.getAttribute("data-dropdown");
-                let dropdownMenu = document.getElementById(dropdownId);
+                
+                // Close all other dropdowns first
+                document.querySelectorAll(".dropdown-menu").forEach(menu => {
+                    if (menu.id !== this.getAttribute("data-dropdown")) {
+                        menu.classList.remove("show");
+                    }
+                });
 
+                // Toggle the clicked dropdown
+                const dropdownId = this.getAttribute("data-dropdown");
+                const dropdownMenu = document.getElementById(dropdownId);
                 if (dropdownMenu) {
-                    document.querySelectorAll(".dropdown-menu").forEach(menu => {
-                        if (menu && menu !== dropdownMenu) {
-                            menu.classList.remove("show");
-                        }
-                    });
-
                     dropdownMenu.classList.toggle("show");
                 }
             });
         });
     }
 
-    document.addEventListener("click", function () {
-        document.querySelectorAll(".dropdown-menu").forEach(menu => menu.classList.remove("show"));
+    // Close dropdowns when clicking outside
+    document.addEventListener("click", function (event) {
+        if (!event.target.closest(".dropdown")) {
+            document.querySelectorAll(".dropdown-menu").forEach(menu => {
+                menu.classList.remove("show");
+            });
+        }
     });
 
+    // Prevent dropdown from closing when clicking inside
     document.querySelectorAll(".dropdown-menu").forEach(menu => {
         menu.addEventListener("click", function (event) {
             event.stopPropagation();
@@ -97,53 +109,34 @@ document.addEventListener("DOMContentLoaded", function () {
 
     // 🔹 Handle Dropdown Selection & Update Button Labels
     document.querySelectorAll(".dropdown-menu ul li").forEach(item => {
-        item.addEventListener("click", function () {
-            let dropdown = this.closest(".dropdown-menu").id;
-            let button = this.closest(".dropdown").querySelector(".dropdown-toggle");
+        item.addEventListener("click", function (event) {
+            event.stopPropagation();
+            let dropdown = this.closest(".dropdown-menu");
+            let button = dropdown.closest(".dropdown").querySelector(".dropdown-toggle");
+            let iconClass = button.querySelector("i").className;
 
-            if (this.textContent.includes("Pick a date") || this.textContent.includes("Custom")) {
-                let inputType = this.textContent.includes("Pick a date") ? "date" : "datetime-local";
-                let inputField = document.createElement("input");
-                inputField.type = inputType;
-                inputField.classList.add("date-picker");
-
-                document.body.appendChild(inputField);
-                inputField.showPicker();
-
-                inputField.addEventListener("change", function () {
-                    if (this.value) {
-                        let formattedDate = formatDateTime(this.value);
-                        button.innerHTML = `<i class="ri-calendar-line"></i> <span>${formattedDate}</span>`;
-                        button.classList.add("selected");
-
-                        if (dropdown === "dueDropdown") {
-                            selectedDueDate = formattedDate;
-                        } else if (dropdown === "reminderDropdown") {
-                            selectedReminder = formattedDate;
-                        } else if (dropdown === "priorityDropdown") {
-                            selectedPriority = this.textContent.trim();
-                        } else if (dropdown === "labelDropdown") {
-                            selectedLabel = this.textContent.trim();
-                        }
-                    }
-                    document.body.removeChild(inputField);
-                });
-            } else {
-                let selectedText = this.textContent.trim();
-                button.innerHTML = `<i class="ri-calendar-line"></i> <span>${selectedText}</span>`;
-                button.classList.add("selected");
-
-                if (dropdown === "dueDropdown") {
-                    selectedDueDate = selectedText;
-                } else if (dropdown === "reminderDropdown") {
-                    selectedReminder = selectedText;
-                } else if (dropdown === "priorityDropdown") {
-                    selectedPriority = selectedText;
-                } else if (dropdown === "labelDropdown") {
-                    selectedLabel = selectedText;
+            // If Pick a date, open Flatpickr and return early
+            if (this.textContent.includes("Pick a date")) {
+                if (dropdown.id === "dueDropdown") {
+                    if (typeof dueDatePicker !== 'undefined') dueDatePicker.open();
+                } else if (dropdown.id === "reminderDropdown") {
+                    if (typeof reminderPicker !== 'undefined') reminderPicker.open();
                 }
+                return; // Prevent further handling
             }
-            this.closest(".dropdown-menu").classList.remove("show");
+
+            let selectedText = this.textContent.trim();
+            button.innerHTML = `<i class="${iconClass}"></i> <span>${selectedText}</span>`;
+            button.classList.add('selected');
+
+            if (dropdown.id === "dueDropdown") {
+                selectedDueDate = selectedText;
+            } else if (dropdown.id === "reminderDropdown") {
+                selectedReminder = selectedText;
+            } else if (dropdown.id === "priorityDropdown") {
+                selectedPriority = selectedText;
+            }
+            dropdown.classList.remove("show");
         });
     });
 
@@ -157,14 +150,40 @@ document.addEventListener("DOMContentLoaded", function () {
 
             // Task Checkbox
             if (target.classList.contains("task-checkbox")) {
-                taskItem.classList.toggle("completed");
-                updateTaskCounts();
+                const taskId = taskItem.getAttribute('data-task-id');
+                const newStatus = target.checked ? 'completed' : 'pending';
+                
+                // Optimize: Update UI immediately for better responsiveness
+                const taskName = taskItem.querySelector('.task-name');
+                taskItem.classList.toggle('completed', newStatus === 'completed');
+                taskName.classList.toggle('completed', newStatus === 'completed');
+                
+                // Then update the backend
+                updateTask(taskId, { status: newStatus })
+                    .catch(error => {
+                        console.error('Error updating task:', error);
+                        // Revert UI changes if update failed
+                        target.checked = !target.checked;
+                        taskItem.classList.toggle('completed');
+                        taskName.classList.toggle('completed');
+                    });
             }
 
             // Task Delete
             if (target.classList.contains("delete-btn")) {
-                taskItem.remove();
-                updateTaskCounts();
+                const taskId = taskItem.getAttribute('data-task-id');
+                if (confirm('Are you sure you want to delete this task?')) {
+                    // Optimize: Remove from DOM immediately
+                    taskItem.style.opacity = '0';
+                    setTimeout(() => taskItem.remove(), 300);
+                    
+                    deleteTask(taskId)
+                        .catch(error => {
+                            console.error('Error deleting task:', error);
+                            // Revert UI changes if delete failed
+                            taskItem.style.opacity = '1';
+                        });
+                }
             }
         });
     }
@@ -197,7 +216,6 @@ document.addEventListener("DOMContentLoaded", function () {
         selectedPriority = "";
         selectedDueDate = "";
         selectedReminder = "";
-        selectedLabel = "";
 
         document.querySelectorAll(".dropdown-toggle").forEach(button => {
             const iconClass = button.querySelector("i").className;
@@ -286,13 +304,46 @@ document.addEventListener("DOMContentLoaded", function () {
             }
 
             const updatedTask = await response.json();
-            renderTasks([updatedTask], false, true); // false for not append, true for update mode
+            
+            // Optimize: Only update the specific task element instead of re-rendering
+            const taskElement = document.querySelector(`[data-task-id="${taskId}"]`);
+            if (taskElement) {
+                const taskName = taskElement.querySelector('.task-name');
+                const completeBtn = taskElement.querySelector('.complete-task-btn');
+                
+                // Update task status classes
+                taskElement.classList.toggle('completed', updateData.status === 'completed');
+                taskName.classList.toggle('completed', updateData.status === 'completed');
+                completeBtn.classList.toggle('completed', updateData.status === 'completed');
+                
+                // Update button text and icon
+                completeBtn.innerHTML = `
+                    <i class="fas ${updateData.status === 'completed' ? 'fa-undo' : 'fa-check'}"></i>
+                    ${updateData.status === 'completed' ? 'Undo' : 'Complete'}
+                `;
+                
+                // Update task counts locally
+                updateTaskCounts();
+                
+                // Debounce the dashboard update
+                debouncedUpdateTaskProgressBar();
+            }
+            
             return updatedTask;
         } catch (error) {
             console.error('Error updating task:', error);
             showNotification('Error updating task', 'error');
             return null;
         }
+    }
+
+    // Add debounce function for dashboard updates
+    let debounceTimer;
+    function debouncedUpdateTaskProgressBar() {
+        clearTimeout(debounceTimer);
+        debounceTimer = setTimeout(() => {
+            updateTaskProgressBar();
+        }, 500); // Wait 500ms before updating dashboard
     }
 
     // Function to delete a task
@@ -346,27 +397,40 @@ document.addEventListener("DOMContentLoaded", function () {
         const taskElement = document.createElement('div');
         taskElement.className = 'task-item';
         taskElement.setAttribute('data-task-id', task._id);
+        // Remove all priority/completed classes first
+        taskElement.classList.remove('priority-high', 'priority-medium', 'priority-low', 'completed');
+        const normalizedPriority = (task.priority || 'low').toLowerCase().trim();
+        if (task.status === 'completed') {
+            taskElement.classList.add('completed');
+        } else if (normalizedPriority === 'high') {
+            taskElement.classList.add('priority-high');
+        } else if (normalizedPriority === 'medium') {
+            taskElement.classList.add('priority-medium');
+        } else {
+            taskElement.classList.add('priority-low');
+        }
 
         const taskContent = `
             <div class="task-content">
-                <input type="checkbox" class="task-checkbox" ${task.status === 'completed' ? 'checked' : ''}>
                 <span class="task-name ${task.status === 'completed' ? 'completed' : ''}">${task.name}</span>
             </div>
             <div class="task-meta">
-                ${task.priority ? `<span class="task-priority ${task.priority.toLowerCase()}">${task.priority}</span>` : ''}
+                ${task.priority ? `<span class="task-priority ${normalizedPriority}">${task.priority}</span>` : ''}
                 ${task.due_date ? `<span class="task-due-date"><i class="fas fa-calendar"></i> ${task.due_date}</span>` : ''}
                 ${task.reminder ? `<span class="task-reminder"><i class="fas fa-bell"></i> ${task.reminder}</span>` : ''}
-                ${task.label ? `<span class="task-label"><i class="fas fa-tag"></i> ${task.label}</span>` : ''}
             </div>
             <div class="task-actions">
-                <button class="complete-task-btn ${task.status === 'completed' ? 'completed' : ''}" title="${task.status === 'completed' ? 'Mark as incomplete' : 'Mark as complete'}">complete
+                <button class="complete-task-btn ${task.status === 'completed' ? 'completed' : ''}" title="${task.status === 'completed' ? 'Mark as incomplete' : 'Mark as complete'}">
                     <i class="fas ${task.status === 'completed' ? 'fa-undo' : 'fa-check'}"></i>
+                    ${task.status === 'completed' ? 'Undo' : 'Complete'}
                 </button>
-                <button class="edit-task-btn" title="Edit task">edit
+                <button class="edit-task-btn" title="Edit task">
                     <i class="fas fa-edit"></i>
+                    Edit
                 </button>
-                <button class="delete-task-btn" title="Delete task">delete
+                <button class="delete-task-btn" title="Delete task">
                     <i class="fas fa-trash"></i>
+                    Delete
                 </button>
             </div>
         `;
@@ -374,17 +438,38 @@ document.addEventListener("DOMContentLoaded", function () {
         taskElement.innerHTML = taskContent;
 
         // Add event listeners
-        const checkbox = taskElement.querySelector('.task-checkbox');
         const completeBtn = taskElement.querySelector('.complete-task-btn');
+        const taskName = taskElement.querySelector('.task-name');
         
-        checkbox.addEventListener('change', () => {
-            const newStatus = checkbox.checked ? 'completed' : 'pending';
-            updateTask(task._id, { status: newStatus });
-        });
-
         completeBtn.addEventListener('click', () => {
             const newStatus = task.status === 'completed' ? 'pending' : 'completed';
-            updateTask(task._id, { status: newStatus });
+            updateTask(task._id, { status: newStatus })
+                .then(() => {
+                    task.status = newStatus;
+                    taskName.classList.toggle('completed', newStatus === 'completed');
+                    completeBtn.classList.toggle('completed', newStatus === 'completed');
+                    completeBtn.innerHTML = `
+                        <i class="fas ${newStatus === 'completed' ? 'fa-undo' : 'fa-check'}"></i>
+                        ${newStatus === 'completed' ? 'Undo' : 'Complete'}
+                    `;
+                    taskElement.classList.remove('priority-high', 'priority-medium', 'priority-low', 'completed');
+                    const normalizedPriority = (task.priority || 'low').toLowerCase().trim();
+                    if (newStatus === 'completed') {
+                        taskElement.classList.add('completed');
+                    } else if (normalizedPriority === 'high') {
+                        taskElement.classList.add('priority-high');
+                    } else if (normalizedPriority === 'medium') {
+                        taskElement.classList.add('priority-medium');
+                    } else {
+                        taskElement.classList.add('priority-low');
+                    }
+                    updateTaskCounts();
+                    updateTaskProgressBar();
+                })
+                .catch(error => {
+                    console.error('Error updating task status:', error);
+                    showNotification('Error updating task status', 'error');
+                });
         });
 
         const deleteBtn = taskElement.querySelector('.delete-task-btn');
@@ -396,36 +481,115 @@ document.addEventListener("DOMContentLoaded", function () {
 
         const editBtn = taskElement.querySelector('.edit-task-btn');
         editBtn.addEventListener('click', () => {
-            const taskName = taskElement.querySelector('.task-name');
-            const currentName = taskName.textContent;
-            taskName.innerHTML = `
-                <input type="text" class="edit-input" value="${currentName}">
-                <button class="save-edit-btn"><i class="fas fa-save"></i></button>
-            `;
-            
-            const saveBtn = taskName.querySelector('.save-edit-btn');
-            const editInput = taskName.querySelector('.edit-input');
-            
-            editInput.focus();
-            
-            saveBtn.addEventListener('click', () => {
-                const newName = editInput.value.trim();
-                if (newName) {
-                    updateTask(task._id, { name: newName });
-                }
-            });
-            
-            editInput.addEventListener('keypress', (e) => {
-                if (e.key === 'Enter') {
-                    const newName = editInput.value.trim();
-                    if (newName) {
-                        updateTask(task._id, { name: newName });
-                    }
-                }
-            });
+            showEditModal(task);
         });
 
         return taskElement;
+    }
+
+    // Function to show edit modal
+    function showEditModal(task) {
+        // Create modal if it doesn't exist
+        let modal = document.querySelector('.task-edit-modal');
+        if (!modal) {
+            modal = document.createElement('div');
+            modal.className = 'task-edit-modal';
+            modal.innerHTML = `
+                <div class="task-edit-content">
+                    <div class="task-edit-header">
+                        <h3>Edit Task</h3>
+                        <button class="close-modal-btn">&times;</button>
+                    </div>
+                    <form class="task-edit-form">
+                        <div class="form-group">
+                            <label for="editTaskName">Task Name</label>
+                            <input type="text" id="editTaskName" required>
+                        </div>
+                        <div class="form-group">
+                            <label for="editTaskPriority">Priority</label>
+                            <select id="editTaskPriority">
+                                <option value="low">Low</option>
+                                <option value="medium">Medium</option>
+                                <option value="high">High</option>
+                            </select>
+                        </div>
+                        <div class="form-group">
+                            <label for="editTaskDueDate">Due Date</label>
+                            <input type="text" id="editTaskDueDate" class="flatpickr-input" placeholder="Select due date">
+                        </div>
+                        <div class="form-group">
+                            <label for="editTaskReminder">Reminder</label>
+                            <input type="text" id="editTaskReminder" class="flatpickr-input" placeholder="Select reminder date">
+                        </div>
+                        <div class="task-edit-actions">
+                            <button type="button" class="cancel-edit-btn">Cancel</button>
+                            <button type="submit" class="save-edit-btn">Save Changes</button>
+                        </div>
+                    </form>
+                </div>
+            `;
+            document.body.appendChild(modal);
+
+            // Initialize Flatpickr for date inputs
+            flatpickr("#editTaskDueDate", {
+                enableTime: true,
+                dateFormat: "Y-m-d H:i",
+                time_24hr: true,
+                allowInput: true,
+                placeholder: "Select due date"
+            });
+
+            flatpickr("#editTaskReminder", {
+                enableTime: true,
+                dateFormat: "Y-m-d H:i",
+                time_24hr: true,
+                allowInput: true,
+                placeholder: "Select reminder date"
+            });
+
+            // Add event listeners for modal
+            const closeBtn = modal.querySelector('.close-modal-btn');
+            const cancelBtn = modal.querySelector('.cancel-edit-btn');
+            const form = modal.querySelector('.task-edit-form');
+
+            closeBtn.addEventListener('click', () => {
+                modal.classList.remove('active');
+            });
+
+            cancelBtn.addEventListener('click', () => {
+                modal.classList.remove('active');
+            });
+
+            form.addEventListener('submit', async (e) => {
+                e.preventDefault();
+                const updatedTask = {
+                    name: document.getElementById('editTaskName').value,
+                    priority: document.getElementById('editTaskPriority').value,
+                    due_date: document.getElementById('editTaskDueDate').value,
+                    reminder: document.getElementById('editTaskReminder').value,
+                    notes: document.getElementById('editTaskNotes').value
+                };
+
+                try {
+                    await updateTask(task._id, updatedTask);
+                    modal.classList.remove('active');
+                    showNotification('Task updated successfully', 'success');
+                    await fetchTasks(); // Refresh the task list
+                } catch (error) {
+                    console.error('Error updating task:', error);
+                    showNotification('Error updating task', 'error');
+                }
+            });
+        }
+
+        // Populate form with current task data
+        document.getElementById('editTaskName').value = task.name;
+        document.getElementById('editTaskPriority').value = task.priority || 'low';
+        document.getElementById('editTaskDueDate').value = task.due_date || '';
+        document.getElementById('editTaskReminder').value = task.reminder || '';
+
+        // Show modal
+        modal.classList.add('active');
     }
 
     // Function to show notifications
@@ -465,9 +629,6 @@ document.addEventListener("DOMContentLoaded", function () {
         if (selectedReminder) {
             taskData.reminder = selectedReminder;
         }
-        if (selectedLabel) {
-            taskData.label = selectedLabel;
-        }
 
         const newTask = await addNewTask(taskData);
         if (newTask) {
@@ -477,4 +638,87 @@ document.addEventListener("DOMContentLoaded", function () {
             await fetchTasks(); // Refresh the task list
         }
     }
+
+    // Function to update task progress in dashboard
+    async function updateTaskProgressBar() {
+        try {
+            const response = await fetch('/dashboard_data');
+            if (!response.ok) {
+                throw new Error('Failed to fetch dashboard data');
+            }
+            const data = await response.json();
+            
+            // Update task stats
+            const statValues = document.querySelectorAll('.stat-value');
+            if (statValues.length >= 3) {
+                statValues[0].textContent = data.task_data.completed; // Completed
+                statValues[1].textContent = data.task_data.pending; // Pending
+                statValues[2].textContent = data.task_data.overdue; // Overdue
+            }
+
+            // Update progress circles
+            const progressCircles = document.querySelectorAll('.progress');
+            progressCircles.forEach(circle => {
+                if (circle.nextElementSibling && circle.nextElementSibling.textContent.includes('completed')) {
+                    circle.style.background = `conic-gradient(#8a2be2 ${data.task_data.completion_percentage}%, #ddd ${data.task_data.completion_percentage}%)`;
+                    circle.nextElementSibling.textContent = `${data.task_data.completion_percentage}% completed`;
+                }
+            });
+
+            // Update task count in the dashboard card
+            const taskCountElements = document.querySelectorAll('.card h2');
+            taskCountElements.forEach(element => {
+                if (element.nextElementSibling && element.nextElementSibling.textContent.includes('Tasks')) {
+                    element.textContent = data.task_data.completed;
+                }
+            });
+        } catch (error) {
+            console.error('Error updating dashboard progress:', error);
+        }
+    }
+
+    // Create date input fields for task creation (in memory, not in DOM)
+    const dueDateInput = document.createElement('input');
+    dueDateInput.type = 'text';
+    dueDateInput.className = 'flatpickr-input';
+    dueDateInput.placeholder = 'Select due date';
+    dueDateInput.id = 'taskDueDate';
+
+    const reminderInput = document.createElement('input');
+    reminderInput.type = 'text';
+    reminderInput.className = 'flatpickr-input';
+    reminderInput.placeholder = 'Select reminder date';
+    reminderInput.id = 'taskReminder';
+
+    // Do NOT append these to the document body!
+
+    // Initialize Flatpickr for due date
+    dueDatePicker = flatpickr(dueDateInput, {
+        enableTime: true,
+        dateFormat: "Y-m-d H:i",
+        time_24hr: true,
+        allowInput: true,
+        onChange: function(selectedDates, dateStr) {
+            selectedDueDate = dateStr;
+            const dueDisplay = document.getElementById('dueDisplay');
+            if (dueDisplay) {
+                dueDisplay.textContent = dateStr;
+            }
+        }
+    });
+
+    // Initialize Flatpickr for reminder
+    reminderPicker = flatpickr(reminderInput, {
+        enableTime: true,
+        dateFormat: "Y-m-d H:i",
+        time_24hr: true,
+        allowInput: true,
+        onChange: function(selectedDates, dateStr) {
+            selectedReminder = dateStr;
+            const reminderDisplay = document.getElementById('reminderDisplay');
+            if (reminderDisplay) {
+                reminderDisplay.textContent = dateStr;
+            }
+        }
+    });
 });

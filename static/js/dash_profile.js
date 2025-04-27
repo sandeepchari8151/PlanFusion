@@ -263,8 +263,7 @@ document.addEventListener("DOMContentLoaded", function () {
                 }
                 
                 // Update avatars immediately with the new URL
-                const timestamp = new Date().getTime();
-                const newAvatarUrl = `${avatarResult.avatar_url}?t=${timestamp}`;
+                const newAvatarUrl = avatarResult.avatar_url;
                 
                 // Update specific avatar elements
                 const profileAvatar = document.getElementById('profileAvatar');

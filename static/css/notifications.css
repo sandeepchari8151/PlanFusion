@@ -153,5 +153,22 @@
     .notification-content p {
         font-size: 12px;
     }
-} 
+}
+
+.high-priority-notification {
+    background: #ffeaea !important;
+    border-left: 4px solid #f44336 !important;
+}
+
+.pending-list .high-priority-notification,
+.notification-item.high-priority-notification {
+    background: #ffeaea !important;
+    border-left: 4px solid #f44336 !important;
+    color: #b71c1c !important;
+}
+
+.medium-priority-notification {
+    background: #fffbe6 !important;
+    border-left: 4px solid #ffc107 !important;
+    color: #b8860b !important;
 } 

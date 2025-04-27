@@ -18,6 +18,8 @@ from werkzeug.utils import secure_filename  # Import secure_filename
 from pymongo import MongoClient
 from bson.objectid import ObjectId
 from flask_cors import CORS  # Import CORS
+from apscheduler.schedulers.background import BackgroundScheduler
+from dateutil.rrule import rrule, DAILY
 
 # ✅ Load environment variables
 if os.path.exists('.env'):
@@ -55,6 +57,141 @@ app.config.update(
 # ✅ Initialize Extensions
 mail = Mail(app)
 
+# Initialize scheduler
+scheduler = BackgroundScheduler()
+scheduler.start()
+
+def send_task_notification():
+    """Send email notifications about pending tasks, skills, goals, and meetings to all users."""
+    try:
+        # Get all users
+        users = list(users_collection.find({}))
+        current_time = datetime.now()
+        is_morning = current_time.hour < 12
+        
+        for user in users:
+            email = user.get('email')
+            if not email:
+                continue
+                
+            # Check user's notification preferences
+            preferences = user.get('notification_preferences', {
+                'email_notifications': True,
+                'daily_task_reminders': True
+            })
+            
+            if not preferences.get('email_notifications') or not preferences.get('daily_task_reminders'):
+                continue
+                
+            # Get user's pending tasks
+            tasks = list(dashboard_tasks_collection.find({
+                'user_email': email,
+                'status': 'pending'
+            }))
+            
+            # Get user's in-progress skills
+            skills = list(skills_collection.find({
+                'user_email': email,
+                'status': 'in_progress'
+            }))
+            
+            # Get user's incomplete goals
+            goals = list(goals_collection.find({
+                'user_email': email,
+                'completed': {'$lt': 100}
+            }))
+            
+            # Get upcoming meetings
+            upcoming_meetings = list(contacts_collection.find({
+                'user_email': email,
+                'next_meeting': {'$gt': datetime.now()}
+            }))
+            
+            # Prepare email content
+            subject = f"{'Morning' if is_morning else 'Evening'} Update from PlanFusion"
+            body = f"""
+            <h2>{'Morning' if is_morning else 'Evening'} Update from PlanFusion</h2>
+            
+            <h3>📋 Pending Tasks ({len(tasks)})</h3>
+            """
+            
+            if tasks:
+                body += "<ul>"
+                for task in tasks:
+                    body += f"<li>{task.get('name')}"
+                    if task.get('due_date'):
+                        body += f" (Due: {task.get('due_date')})"
+                    if task.get('priority'):
+                        body += f" [Priority: {task.get('priority')}]"
+                    body += "</li>"
+                body += "</ul>"
+            else:
+                body += "<p>No pending tasks!</p>"
+            
+            body += f"""
+            <h3>🎯 In-Progress Skills ({len(skills)})</h3>
+            """
+            
+            if skills:
+                body += "<ul>"
+                for skill in skills:
+                    completion = skill.get('completed', 0)
+                    body += f"<li>{skill.get('name')} - {completion}% complete</li>"
+                body += "</ul>"
+            else:
+                body += "<p>No skills in progress!</p>"
+            
+            body += f"""
+            <h3>🎯 Active Goals ({len(goals)})</h3>
+            """
+            
+            if goals:
+                body += "<ul>"
+                for goal in goals:
+                    completion = goal.get('completed', 0)
+                    target = goal.get('target', 0)
+                    body += f"<li>{goal.get('description')} - {completion}/{target} completed</li>"
+                body += "</ul>"
+            else:
+                body += "<p>No active goals!</p>"
+            
+            body += f"""
+            <h3>🤝 Upcoming Meetings ({len(upcoming_meetings)})</h3>
+            """
+            
+            if upcoming_meetings:
+                body += "<ul>"
+                for meeting in upcoming_meetings:
+                    next_meeting = meeting.get('next_meeting')
+                    if next_meeting:
+                        body += f"<li>{meeting.get('name')} - {next_meeting.strftime('%Y-%m-%d %H:%M')}</li>"
+                body += "</ul>"
+            else:
+                body += "<p>No upcoming meetings!</p>"
+            
+            body += """
+            <p>Log in to your dashboard to manage your tasks and goals.</p>
+            <p>Best regards,<br>PlanFusion Team</p>
+            """
+            
+            # Send email
+            msg = Message(subject, recipients=[email])
+            msg.html = body
+            mail.send(msg)
+            
+            app.logger.info(f"Comprehensive notification sent to {email}")
+            
+    except Exception as e:
+        app.logger.error(f"Error sending notifications: {str(e)}")
+
+# Schedule notifications for 9 AM and 6 PM
+scheduler.add_job(
+    send_task_notification,
+    'cron',
+    hour='9,18',
+    minute=0,
+    id='task_notifications'
+)
 
 def get_db():
     client = MongoClient(app.config['MONGODB_URI'])  # Use URI
@@ -62,6 +199,10 @@ def get_db():
 
 
 db = get_db()  # Get the database connection
+
+# Define collections
+users_collection = db['users']
+dashboard_tasks_collection = db['dashboard_tasks']
 
 # ✅ Logging
 logging.basicConfig(filename='app.log', level=logging.INFO,
@@ -170,6 +311,48 @@ def register():
     return render_template('register.html', form=form)
 
 
+def get_notification_count(email):
+    """
+    Get the total number of notifications for a user.
+    """
+    try:
+        # Get pending tasks
+        pending_tasks = list(dashboard_tasks_collection.find({
+            'user_email': email,
+            'status': 'pending'
+        }))
+        
+        # Get in-progress skills
+        in_progress_skills = list(skills_collection.find({
+            'user_email': email,
+            'status': 'in_progress'
+        }))
+        
+        # Get upcoming meetings
+        upcoming_meetings = list(contacts_collection.find({
+            'user_email': email,
+            'next_meeting': {'$gt': datetime.now()}
+        }))
+        
+        # Get incomplete goals
+        incomplete_goals = list(goals_collection.find({
+            'user_email': email,
+            'completed': {'$lt': 100}
+        }))
+        
+        total_notifications = (
+            len(pending_tasks) +
+            len(in_progress_skills) +
+            len(upcoming_meetings) +
+            len(incomplete_goals)
+        )
+        
+        return total_notifications
+        
+    except Exception as e:
+        app.logger.error(f"Error getting notification count: {str(e)}")
+        return 0
+
 @app.route('/login', methods=['GET', 'POST'])
 def login():
     """
@@ -186,7 +369,16 @@ def login():
             session['user_email'] = user['email']
             session.permanent = bool(remember)
             logging.info(f"Login successful for {user['email']}")
-            flash("Login successful!", "success")
+            
+            # Get notification count
+            notification_count = get_notification_count(user['email'])
+            
+            # Show success message with notification count
+            if notification_count > 0:
+                flash(f"Login successful! You have {notification_count} new notifications.", "success")
+            else:
+                flash("Login successful!", "success")
+                
             return redirect(url_for('user_dash'))
         else:
             logging.warning(f"Failed login attempt for {email}")
@@ -277,8 +469,10 @@ def user_dash():
     
     # Get skills data
     skills = list(skills_collection.find({"user_email": email}))
-    completed_skills = [s for s in skills if s.get('status') == 'completed']
-    in_progress_skills = [s for s in skills if s.get('status') == 'in_progress']
+    completed_skills = [s for s in skills if s.get('completed', 0) == 100]
+    in_progress_skills = [s for s in skills if s.get('completed', 0) < 100]
+    pending_skills = []  # No longer needed as all non-completed skills are in progress
+    on_hold_skills = [s for s in skills if s.get('status') == 'on_hold']
     
     # Get network data
     contacts = list(contacts_collection.find({"user_email": email}))
@@ -420,9 +614,9 @@ def dashboard_data():
         
         # Get skills data
         skills = list(skills_collection.find({"user_email": email}))
-        completed_skills = [s for s in skills if s.get('status') == 'completed']
-        in_progress_skills = [s for s in skills if s.get('status') == 'in_progress']
-        pending_skills = [s for s in skills if s.get('status') == 'pending']
+        completed_skills = [s for s in skills if s.get('completed', 0) == 100]
+        in_progress_skills = [s for s in skills if s.get('completed', 0) < 100]
+        pending_skills = []  # No longer needed as all non-completed skills are in progress
         on_hold_skills = [s for s in skills if s.get('status') == 'on_hold']
         
         # Get network data
@@ -446,12 +640,18 @@ def dashboard_data():
                 'pending': len(pending_tasks),
                 'overdue': len(overdue_tasks),
                 'completion_percentage': task_completion_percentage,
-                'pending_tasks_list': [{'name': t.get('name', 'Unnamed Task')} for t in pending_tasks]
+                'pending_tasks_list': [
+                    {
+                        'name': t.get('name', 'Unnamed Task'),
+                        'priority': t.get('priority', ''),
+                        'due_date': t.get('due_date', '')
+                    } for t in pending_tasks
+                ]
             },
             'skill_data': {
                 'completed': len(completed_skills),
                 'in_progress': len(in_progress_skills),
-                'pending': len(pending_skills),
+                'pending': 0,  # Set to 0 since all non-completed skills are in progress
                 'on_hold': len(on_hold_skills),
                 'completion_percentage': skill_completion_percentage,
                 'in_progress_skills_list': [{'name': s.get('name', 'Unnamed Skill')} for s in in_progress_skills]
@@ -965,35 +1165,47 @@ def add_skill():
     try:
         email = session['user_email']
         data = request.get_json()
-        
-        # Validate required fields
-        if not data.get('name'):
-            return jsonify({'message': 'Skill name is required'}), 400
-            
-        # Prepare skill data with proper defaults
+        # Backend validation for required fields
+        required_fields = ['name', 'learningFrom', 'startDate', 'expectedEndDate']
+        for field in required_fields:
+            if not data.get(field):
+                return jsonify({'message': f'Missing required field: {field}'}), 400
+        # Validate date format
+        try:
+            start_dt = datetime.strptime(data['startDate'], '%Y-%m-%d')
+            end_dt = datetime.strptime(data['expectedEndDate'], '%Y-%m-%d')
+        except Exception:
+            return jsonify({'message': 'Invalid date format. Use YYYY-MM-DD.'}), 400
+        days = []
+        for dt in rrule(DAILY, dtstart=start_dt, until=end_dt):
+            days.append({
+                'date': dt.strftime('%Y-%m-%d'),
+                'note': '',
+                'completed': False
+            })
         skill_data = {
             'user_email': email,
             'name': data.get('name'),
-            'description': data.get('description', ''),
-            'status': data.get('status', 'pending'),  # Default status is pending
-            'completed': int(data.get('completed', 0)),  # Ensure completed is an integer
-            'created_at': datetime.utcnow()
+            'learningFrom': data.get('learningFrom', 'Unknown Source'),
+            'startDate': data.get('startDate'),
+            'expectedEndDate': data.get('expectedEndDate'),
+            'status': data.get('status', 'pending'),
+            'completed': 0,
+            'days': days,
+            'created_at': datetime.utcnow(),
+            'priority': data.get('priority', 'medium'),
+            'level': data.get('level', 'beginner')  # Add level field with default value
         }
-        
-        app.logger.info(f"Adding new skill: {skill_data}")  # Debug log
-        
-        # Insert the skill
+        app.logger.info(f"Adding new skill: {skill_data}")
         result = skills_collection.insert_one(skill_data)
         new_skill = skills_collection.find_one({"_id": result.inserted_id})
-        
         if new_skill:
             new_skill['_id'] = str(new_skill['_id'])
-            app.logger.info(f"Successfully added skill: {new_skill}")  # Debug log
+            app.logger.info(f"Successfully added skill: {new_skill}")
             return jsonify(new_skill), 201
         else:
             app.logger.error("Failed to retrieve newly created skill")
             return jsonify({'message': 'Error creating skill'}), 500
-            
     except Exception as e:
         app.logger.error(f"Error adding skill: {str(e)}")
         return jsonify({'message': f'An error occurred while adding the skill: {str(e)}'}), 500
@@ -1016,8 +1228,12 @@ def update_skill(skill_id):
         # Update fields if provided
         if 'name' in data:
             update_data['name'] = data['name']
-        if 'description' in data:
-            update_data['description'] = data['description']
+        if 'learningFrom' in data:
+            update_data['learningFrom'] = data['learningFrom']
+        if 'startDate' in data:
+            update_data['startDate'] = data['startDate']
+        if 'expectedEndDate' in data:
+            update_data['expectedEndDate'] = data['expectedEndDate']
         if 'status' in data:
             update_data['status'] = data['status']
         if 'completed' in data:
@@ -1036,6 +1252,21 @@ def update_skill(skill_id):
             except (ValueError, TypeError):
                 app.logger.error(f"Invalid completion value: {data['completed']}")
                 return jsonify({'message': 'Invalid completion value'}), 400
+        if 'notes' in data:
+            update_data['notes'] = data['notes']
+        if 'documents' in data:
+            update_data['documents'] = data['documents']
+        if 'priority' in data:
+            update_data['priority'] = data['priority']
+        if 'level' in data:
+            update_data['level'] = data['level']
+        if 'completionCertificate' in data and data['completionCertificate'] is None:
+            # Remove the certificate from the documents array if it exists
+            skills_collection.update_one(
+                {'_id': ObjectId(skill_id), 'user_email': email},
+                {'$pull': {'documents': skill.get('completionCertificate')}}
+            )
+            update_data['completionCertificate'] = None
                 
         app.logger.info(f"Updating skill {skill_id} with data: {update_data}")  # Debug log
         
@@ -1250,6 +1481,194 @@ def delete_dashboard_task(task_id):
         app.logger.error(f"Error deleting dashboard task: {str(e)}")
         return jsonify({'message': 'An error occurred while deleting the task'}), 500
 
+@app.route('/api/user/notification-preferences', methods=['GET'])
+@login_required
+def get_notification_preferences():
+    """Get user's notification preferences."""
+    try:
+        email = session['user_email']
+        user = users_collection.find_one({'email': email})
+        
+        if not user:
+            return jsonify({'message': 'User not found'}), 404
+            
+        preferences = user.get('notification_preferences', {
+            'push_notifications': True,
+            'email_notifications': True,
+            'daily_task_reminders': True,
+            'due_date_reminders': True,
+            'completion_notifications': True
+        })
+        
+        return jsonify(preferences)
+        
+    except Exception as e:
+        app.logger.error(f"Error getting notification preferences: {str(e)}")
+        return jsonify({'message': 'An error occurred'}), 500
+
+@app.route('/api/user/notification-preferences', methods=['POST'])
+@login_required
+def update_notification_preferences():
+    """Update user's notification preferences."""
+    try:
+        email = session['user_email']
+        data = request.get_json()
+        
+        # Validate required fields
+        required_fields = [
+            'push_notifications',
+            'email_notifications',
+            'daily_task_reminders',
+            'due_date_reminders',
+            'completion_notifications'
+        ]
+        
+        for field in required_fields:
+            if field not in data:
+                return jsonify({'message': f'Missing required field: {field}'}), 400
+        
+        # Update user's notification preferences
+        result = users_collection.update_one(
+            {'email': email},
+            {'$set': {'notification_preferences': data}}
+        )
+        
+        if result.modified_count == 0:
+            return jsonify({'message': 'No changes made'}), 200
+            
+        return jsonify({'message': 'Notification preferences updated successfully'})
+        
+    except Exception as e:
+        app.logger.error(f"Error updating notification preferences: {str(e)}")
+        return jsonify({'message': 'An error occurred'}), 500
+
+@app.route('/test_email/<recipient>')
+def test_email(recipient):
+    try:
+        msg = Message(
+            subject="Test Email from PlanFusion",
+            sender=app.config['MAIL_DEFAULT_SENDER'],
+            recipients=[recipient],
+            body="This is a test email from PlanFusion. If you receive this, the email configuration is working correctly!"
+        )
+        mail.send(msg)
+        return jsonify({"message": f"Test email sent successfully to {recipient}!"}), 200
+    except Exception as e:
+        return jsonify({"error": str(e)}), 500
+
+@app.route('/api/test-notification', methods=['POST'])
+@login_required
+def send_test_notification():
+    """Send a test notification email to the current user with all their data."""
+    try:
+        email = session['user_email']
+        
+        # Get user's pending tasks
+        tasks = list(dashboard_tasks_collection.find({
+            'user_email': email,
+            'status': 'pending'
+        }))
+        
+        # Get user's in-progress skills
+        skills = list(skills_collection.find({
+            'user_email': email,
+            'status': 'in_progress'
+        }))
+        
+        # Get user's incomplete goals
+        goals = list(goals_collection.find({
+            'user_email': email,
+            'completed': {'$lt': 100}
+        }))
+        
+        # Get upcoming meetings
+        upcoming_meetings = list(contacts_collection.find({
+            'user_email': email,
+            'next_meeting': {'$gt': datetime.now()}
+        }))
+        
+        # Prepare email content
+        subject = "Test Notification from PlanFusion"
+        body = f"""
+        <h2>Test Notification from PlanFusion</h2>
+        <p>This is a test notification to show you how your daily updates will look.</p>
+        
+        <h3>📋 Pending Tasks ({len(tasks)})</h3>
+        """
+        
+        if tasks:
+            body += "<ul>"
+            for task in tasks:
+                body += f"<li>{task.get('name')}"
+                if task.get('due_date'):
+                    body += f" (Due: {task.get('due_date')})"
+                if task.get('priority'):
+                    body += f" [Priority: {task.get('priority')}]"
+                body += "</li>"
+            body += "</ul>"
+        else:
+            body += "<p>No pending tasks!</p>"
+        
+        body += f"""
+        <h3>🎯 In-Progress Skills ({len(skills)})</h3>
+        """
+        
+        if skills:
+            body += "<ul>"
+            for skill in skills:
+                completion = skill.get('completed', 0)
+                body += f"<li>{skill.get('name')} - {completion}% complete</li>"
+            body += "</ul>"
+        else:
+            body += "<p>No skills in progress!</p>"
+        
+        body += f"""
+        <h3>🎯 Active Goals ({len(goals)})</h3>
+        """
+        
+        if goals:
+            body += "<ul>"
+            for goal in goals:
+                completion = goal.get('completed', 0)
+                target = goal.get('target', 0)
+                body += f"<li>{goal.get('description')} - {completion}/{target} completed</li>"
+            body += "</ul>"
+        else:
+            body += "<p>No active goals!</p>"
+        
+        body += f"""
+        <h3>🤝 Upcoming Meetings ({len(upcoming_meetings)})</h3>
+        """
+        
+        if upcoming_meetings:
+            body += "<ul>"
+            for meeting in upcoming_meetings:
+                next_meeting = meeting.get('next_meeting')
+                if next_meeting:
+                    body += f"<li>{meeting.get('name')} - {next_meeting.strftime('%Y-%m-%d %H:%M')}</li>"
+            body += "</ul>"
+        else:
+            body += "<p>No upcoming meetings!</p>"
+        
+        body += """
+        <p>This is how your daily notifications will look. You will receive these updates every morning at 9 AM and evening at 6 PM.</p>
+        <p>Best regards,<br>PlanFusion Team</p>
+        """
+        
+        # Send email
+        msg = Message(subject, recipients=[email])
+        msg.html = body
+        mail.send(msg)
+        
+        app.logger.info(f"Test notification sent to {email}")
+        flash("Test notification sent successfully! Check your email.", "success")
+        return jsonify({'message': 'Test notification sent successfully!', 'flash': True}), 200
+        
+    except Exception as e:
+        app.logger.error(f"Error sending test notification: {str(e)}")
+        flash(f"Error sending test notification: {str(e)}", "error")
+        return jsonify({'message': f'Error sending test notification: {str(e)}', 'flash': True}), 500
+
 # ✅ Custom Error Handling
 @app.errorhandler(404)
 def page_not_found(e):
@@ -1257,6 +1676,50 @@ def page_not_found(e):
     Custom handler for 404 Not Found errors.
     """
     return render_template("404.html"), 404
+
+@app.route('/api/skills/<skill_id>/day/<date>', methods=['PUT'])
+@login_required
+def update_skill_day(skill_id, date):
+    try:
+        email = session['user_email']
+        data = request.get_json()
+        note = data.get('note', '')
+        completed = data.get('completed', False)
+        skill = skills_collection.find_one({'_id': ObjectId(skill_id), 'user_email': email})
+        if not skill:
+            return jsonify({'message': 'Skill not found or unauthorized'}), 404
+        days = skill.get('days', [])
+        updated = False
+        for day in days:
+            if day['date'] == date:
+                day['note'] = note
+                day['completed'] = completed
+                updated = True
+                break
+        if not updated:
+            return jsonify({'message': 'Day not found in skill'}), 404
+        # Recalculate completed percentage
+        total_days = len(days)
+        completed_days = sum(1 for d in days if d.get('completed'))
+        percent = int((completed_days / total_days) * 100) if total_days > 0 else 0
+        update_data = {'days': days, 'completed': percent}
+        # Optionally update status
+        if percent >= 100:
+            update_data['status'] = 'completed'
+        elif percent > 0:
+            update_data['status'] = 'in_progress'
+        else:
+            update_data['status'] = 'pending'
+        result = skills_collection.update_one({'_id': ObjectId(skill_id), 'user_email': email}, {'$set': update_data})
+        if result.modified_count > 0:
+            updated_skill = skills_collection.find_one({'_id': ObjectId(skill_id)})
+            updated_skill['_id'] = str(updated_skill['_id'])
+            return jsonify(updated_skill)
+        else:
+            return jsonify({'message': 'No changes were made to the skill'}), 200
+    except Exception as e:
+        app.logger.error(f"Error updating skill day: {str(e)}")
+        return jsonify({'message': f'An error occurred while updating the skill day: {str(e)}'}), 500
 
 # ✅ Run App
 if __name__ == '__main__':

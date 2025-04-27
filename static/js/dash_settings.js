@@ -412,30 +412,47 @@ async function fetchAndUpdateNotifications() {
         if (completedList) completedList.innerHTML = '';
 
         // Add task notifications
-        if (data.task_data) {
-            // Pending tasks
-            if (data.task_data.pending > 0) {
-                addNotification(
-                    `You have ${data.task_data.pending} pending task${data.task_data.pending > 1 ? 's' : ''}`,
-                    'pending'
-                );
-            }
+        if (data.task_data && data.task_data.pending_tasks_list && data.task_data.pending_tasks_list.length > 0) {
+            data.task_data.pending_tasks_list.forEach(task => {
+                let message = '';
+                let dueText = task.due_date ? ` (Due: ${task.due_date})` : '';
+                let extraClass = '';
+                if (task.priority && task.priority.toLowerCase() === 'high') {
+                    message = `⚠️ <b>${task.name}</b>${dueText} — <span style=\"color:#d32f2f\">You have forgotten this high priority task!</span>`;
+                    extraClass = 'high-priority-notification';
+                } else if (task.priority && task.priority.toLowerCase() === 'medium') {
+                    message = `🟡 <b>${task.name}</b>${dueText} — <span style=\"color:#b8860b\">This task needs your attention soon!</span>`;
+                    extraClass = 'medium-priority-notification';
+                } else {
+                    message = `<b>${task.name}</b>${dueText} — Don't forget to complete this task!`;
+                }
+                addNotification(message, 'pending', extraClass);
+            });
+        }
 
-            // Overdue tasks
-            if (data.task_data.overdue > 0) {
-                addNotification(
-                    `You have ${data.task_data.overdue} overdue task${data.task_data.overdue > 1 ? 's' : ''}`,
-                    'pending'
-                );
-            }
+        // Add in-progress skills notifications
+        if (data.skill_data && data.skill_data.in_progress_skills_list && data.skill_data.in_progress_skills_list.length > 0) {
+            data.skill_data.in_progress_skills_list.forEach(skill => {
+                let endDateText = skill.expectedEndDate ? ` (Ends: ${skill.expectedEndDate})` : '';
+                let message = `<b>${skill.name}</b>${endDateText} — Keep going, you're making progress!`;
+                addNotification(message, 'pending');
+            });
+        }
 
-            // Completed tasks
-            if (data.task_data.completed > 0) {
-                addNotification(
-                    `You've completed ${data.task_data.completed} task${data.task_data.completed > 1 ? 's' : ''} (${data.task_data.completion_percentage}%)`,
-                    'completed'
-                );
-            }
+        // Overdue tasks
+        if (data.task_data && data.task_data.overdue > 0) {
+            addNotification(
+                `You have ${data.task_data.overdue} overdue task${data.task_data.overdue > 1 ? 's' : ''}`,
+                'pending'
+            );
+        }
+
+        // Completed tasks
+        if (data.task_data && data.task_data.completed > 0) {
+            addNotification(
+                `You've completed ${data.task_data.completed} task${data.task_data.completed > 1 ? 's' : ''} (${data.task_data.completion_percentage}%)`,
+                'completed'
+            );
         }
 
         // Add skill notifications
@@ -492,14 +509,14 @@ async function fetchAndUpdateNotifications() {
     }
 }
 
-function addNotification(message, type = 'pending') {
+function addNotification(message, type = 'pending', extraClass = '') {
     const notificationList = type === 'pending' 
         ? document.querySelector('.pending-list')
         : document.querySelector('.completed-list');
     
     if (notificationList) {
         const notificationItem = document.createElement('div');
-        notificationItem.className = 'notification-item';
+        notificationItem.className = 'notification-item' + (extraClass ? ' ' + extraClass : '');
         notificationItem.innerHTML = `
             <div class="notification-content">
                 <p>${message}</p>
@@ -603,6 +620,181 @@ function showToast(message, type = 'info') {
         toast.classList.remove('show');
         setTimeout(() => {
             document.body.removeChild(toast);
+        }, 300);
+    }, 3000);
+}
+
+// Test Notification Button functionality
+document.addEventListener('DOMContentLoaded', function() {
+    const testNotificationBtn = document.getElementById('testNotificationBtn');
+    
+    if (testNotificationBtn) {
+        testNotificationBtn.addEventListener('click', async function() {
+            try {
+                // Show loading state
+                testNotificationBtn.disabled = true;
+                testNotificationBtn.innerHTML = '<i class="ri-loader-4-line"></i> Sending...';
+                
+                // Send request to test notification endpoint
+                const response = await fetch('/api/test-notification', {
+                    method: 'POST',
+                    headers: {
+                        'Content-Type': 'application/json'
+                    }
+                });
+                
+                const data = await response.json();
+                
+                if (response.ok) {
+                    // Show success message
+                    showNotification('Test notification sent successfully!', 'success');
+                    
+                    // Add flash message
+                    const flashContainer = document.createElement('div');
+                    flashContainer.className = 'flash-message success';
+                    flashContainer.innerHTML = `
+                        <div class="flash-content">
+                            <i class="ri-check-line"></i>
+                            <span>Test notification sent successfully! Check your email.</span>
+                        </div>
+                        <button class="flash-close">&times;</button>
+                    `;
+                    document.body.appendChild(flashContainer);
+                    
+                    // Show flash message
+                    setTimeout(() => {
+                        flashContainer.classList.add('show');
+                    }, 100);
+                    
+                    // Remove flash message after 5 seconds
+                    setTimeout(() => {
+                        flashContainer.classList.remove('show');
+                        setTimeout(() => {
+                            flashContainer.remove();
+                        }, 300);
+                    }, 5000);
+                    
+                    // Add close button functionality
+                    const closeBtn = flashContainer.querySelector('.flash-close');
+                    if (closeBtn) {
+                        closeBtn.addEventListener('click', () => {
+                            flashContainer.classList.remove('show');
+                            setTimeout(() => {
+                                flashContainer.remove();
+                            }, 300);
+                        });
+                    }
+                } else {
+                    // Show error message
+                    showNotification(data.message || 'Failed to send test notification', 'error');
+                    
+                    // Add error flash message
+                    const flashContainer = document.createElement('div');
+                    flashContainer.className = 'flash-message error';
+                    flashContainer.innerHTML = `
+                        <div class="flash-content">
+                            <i class="ri-error-warning-line"></i>
+                            <span>${data.message || 'Failed to send test notification'}</span>
+                        </div>
+                        <button class="flash-close">&times;</button>
+                    `;
+                    document.body.appendChild(flashContainer);
+                    
+                    // Show flash message
+                    setTimeout(() => {
+                        flashContainer.classList.add('show');
+                    }, 100);
+                    
+                    // Remove flash message after 5 seconds
+                    setTimeout(() => {
+                        flashContainer.classList.remove('show');
+                        setTimeout(() => {
+                            flashContainer.remove();
+                        }, 300);
+                    }, 5000);
+                    
+                    // Add close button functionality
+                    const closeBtn = flashContainer.querySelector('.flash-close');
+                    if (closeBtn) {
+                        closeBtn.addEventListener('click', () => {
+                            flashContainer.classList.remove('show');
+                            setTimeout(() => {
+                                flashContainer.remove();
+                            }, 300);
+                        });
+                    }
+                }
+            } catch (error) {
+                // Show error message
+                showNotification('An error occurred while sending the test notification', 'error');
+                
+                // Add error flash message
+                const flashContainer = document.createElement('div');
+                flashContainer.className = 'flash-message error';
+                flashContainer.innerHTML = `
+                    <div class="flash-content">
+                        <i class="ri-error-warning-line"></i>
+                        <span>An error occurred while sending the test notification</span>
+                    </div>
+                    <button class="flash-close">&times;</button>
+                `;
+                document.body.appendChild(flashContainer);
+                
+                // Show flash message
+                setTimeout(() => {
+                    flashContainer.classList.add('show');
+                }, 100);
+                
+                // Remove flash message after 5 seconds
+                setTimeout(() => {
+                    flashContainer.classList.remove('show');
+                    setTimeout(() => {
+                        flashContainer.remove();
+                    }, 300);
+                }, 5000);
+                
+                // Add close button functionality
+                const closeBtn = flashContainer.querySelector('.flash-close');
+                if (closeBtn) {
+                    closeBtn.addEventListener('click', () => {
+                        flashContainer.classList.remove('show');
+                        setTimeout(() => {
+                            flashContainer.remove();
+                        }, 300);
+                    });
+                }
+            } finally {
+                // Reset button state
+                testNotificationBtn.disabled = false;
+                testNotificationBtn.innerHTML = '<i class="ri-mail-send-line"></i> Send Test Notification';
+            }
+        });
+    }
+});
+
+// Function to show notification messages
+function showNotification(message, type = 'info') {
+    const notification = document.createElement('div');
+    notification.className = `notification ${type}`;
+    notification.innerHTML = `
+        <div class="notification-content">
+            <i class="ri-${type === 'success' ? 'check' : 'error'}-line"></i>
+            <span>${message}</span>
+        </div>
+    `;
+    
+    document.body.appendChild(notification);
+    
+    // Show notification
+    setTimeout(() => {
+        notification.classList.add('show');
+    }, 100);
+    
+    // Remove notification after 3 seconds
+    setTimeout(() => {
+        notification.classList.remove('show');
+        setTimeout(() => {
+            notification.remove();
         }, 300);
     }, 3000);
 }

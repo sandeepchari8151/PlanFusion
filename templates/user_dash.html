@@ -20,9 +20,91 @@
   <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/flatpickr/dist/flatpickr.min.css">
   <script src="https://code.jquery.com/jquery-3.6.0.min.js"></script>
   <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+
+  <!-- Popup message styles -->
+  <style>
+    .popup-overlay {
+      position: fixed;
+      top: 0;
+      left: 0;
+      width: 100%;
+      height: 100%;
+      background: rgba(0, 0, 0, 0.5);
+      display: flex;
+      justify-content: center;
+      align-items: center;
+      z-index: 9999;
+      opacity: 0;
+      visibility: hidden;
+      transition: all 0.3s ease;
+    }
+
+    .popup-overlay.show {
+      opacity: 1;
+      visibility: visible;
+    }
+
+    .popup-message {
+      background: white;
+      padding: 20px;
+      border-radius: 10px;
+      box-shadow: 0 4px 6px rgba(0, 0, 0, 0.1);
+      text-align: center;
+      max-width: 400px;
+      width: 90%;
+      transform: translateY(-20px);
+      transition: transform 0.3s ease;
+    }
+
+    .popup-overlay.show .popup-message {
+      transform: translateY(0);
+    }
+
+    .popup-message h3 {
+      margin: 0 0 10px 0;
+      color: #333;
+    }
+
+    .popup-message p {
+      margin: 0;
+      color: #666;
+    }
+
+    .popup-message .notification-count {
+      font-size: 24px;
+      font-weight: bold;
+      color: #8A2BE2;
+      margin: 10px 0;
+    }
+
+    .popup-message .close-btn {
+      background: #8A2BE2;
+      color: white;
+      border: none;
+      padding: 10px 20px;
+      border-radius: 5px;
+      cursor: pointer;
+      margin-top: 15px;
+      transition: background 0.3s ease;
+    }
+
+    .popup-message .close-btn:hover {
+      background: #9932CC;
+    }
+  </style>
 </head>
 
 <body>
+  <!-- Popup message container -->
+  <div class="popup-overlay" id="notificationPopup">
+    <div class="popup-message">
+      <h3>New Notifications</h3>
+      <div class="notification-count" id="popupNotificationCount">0</div>
+      <p>You have new notifications waiting for you!</p>
+      <button class="close-btn" onclick="closePopup()">Close</button>
+    </div>
+  </div>
+
   <!-- Navigation Bar -->
   <nav>
     <div class="nav_header">
@@ -78,7 +160,7 @@
         <div class="profile-toggle" id="profile-toggle">
           <img
             id="profile-toggle-avatar"
-            src="{{ profile.avatar_url if profile and profile.avatar_url else url_for('static', filename='images/profile.jpg') }}{% if profile and profile.avatar_url %}?cache_buster={{ random_string(8) }}{% endif %}"
+            src="{{ profile.avatar_url if profile and profile.avatar_url else url_for('static', filename='images/profile.jpg') }}"
             alt="User Avatar">
         </div>
         <div class="profile-dropdown-menu" id="profile-dropdown-menu">
@@ -325,23 +407,6 @@
                   </ul>
                 </div>
               </div>
-
-              <!-- Labels -->
-              <div class="dropdown">
-                <button class="dropdown-toggle" data-dropdown="labelDropdown" data-tooltip="Add labels to categorize tasks">
-                  <span id="labelDisplay">Label</span> <i class="ri-price-tag-line"></i>
-                </button>
-                <div class="dropdown-menu" id="labelDropdown">
-                  <p><strong>Labels</strong></p>
-                  <ul>
-                    <li data-tooltip="Work-related tasks"><i class="ri-price-tag-fill"></i> Work</li>
-                    <li data-tooltip="Personal tasks"><i class="ri-price-tag-fill"></i> Personal</li>
-                    <li data-tooltip="Shopping tasks"><i class="ri-price-tag-fill"></i> Shopping</li>
-                    <li data-tooltip="Health and wellness tasks"><i class="ri-price-tag-fill"></i> Health</li>
-                    <li data-tooltip="Create a new custom label"><i class="ri-add-line"></i> Add new label</li>
-                  </ul>
-                </div>
-              </div>
             </div>
           </div>
           <!-- Task List Display -->
@@ -384,7 +449,18 @@
 
               <div class="input-group">
                   <label for="learningSource">Learning From:</label>
-                  <input type="text" id="learningSource" placeholder="e.g., Coursera, Udemy" required>
+                  <input type="text" id="learningSource" placeholder="e.g., Infosys Spring, Coursera, Udemy" list="learningSourcesList" required>
+                  <datalist id="learningSourcesList">
+                    <option value="Infosys Spring">
+                    <option value="Coursera">
+                    <option value="Udemy">
+                    <option value="edX">
+                    <option value="Pluralsight">
+                    <option value="LinkedIn Learning">
+                    <option value="Codecademy">
+                    <option value="FreeCodeCamp">
+                    <option value="YouTube">
+                  </datalist>
                   <div id="sourceSuggestions" class="suggestions-container"></div>
               </div>
 
@@ -399,16 +475,11 @@
 
               <div class="input-group">
                   <label for="skillPriority">Priority:</label>
-                  <select id="skillPriority" required>
+                  <select id="skillPriority" name="skillPriority">
                       <option value="low">Low</option>
-                      <option value="medium">Medium</option>
+                      <option value="medium" selected>Medium</option>
                       <option value="high">High</option>
                   </select>
-              </div>
-
-              <div class="input-group">
-                  <label for="skillTags">Tags (comma separated):</label>
-                  <input type="text" id="skillTags" placeholder="e.g., programming, web development">
               </div>
           </div>
           <div class="skills-actions">
@@ -439,8 +510,6 @@
             <h2>Notes for <span id="notesSkillName"></span></h2>
             <div id="notesList">
                 </div>
-            <textarea id="newNote" placeholder="What did you learn today?"></textarea>
-            <button id="saveNoteButton">Save Note for Today</button>
         </div>
     </div>
   
@@ -483,14 +552,14 @@
 <!--network section -->
 <section id="networking" class="dashboard-section">
   <header class="network-header">
-      <h2><i class="ri-group-line"></i> Networking</h2>
+      <h2><i class='bx bx-group'></i> Networking</h2>
       <p id="ncurrentDate">Thursday, March 27</p>
       <div class="header-right">
           <button id="nviewToggle" class="view-toggle">
-              <i class="ri-grid-fill"></i> Grid View
+              <i class='bx bx-grid-alt'></i> Grid View
           </button>
           <button id="nsortToggle" class="sort-toggle">
-              <i class="ri-sort-asc"></i> Sort
+              <i class='bx bx-sort'></i> Sort
           </button>
       </div>
   </header>
@@ -614,7 +683,7 @@
             <!-- Avatar Display -->
             <div class="avatar-wrapper">
               <div class="avatar-edit-wrapper">
-                <img id="profileAvatar" class="card-avatar" src="{{ profile.avatar_url if profile and profile.avatar_url else url_for('static', filename='images/profile.jpg') }}{% if profile and profile.avatar_url %}?cache_buster={{ random_string(8) }}{% endif %}" alt="avatar" />
+                <img id="profileAvatar" class="card-avatar" src="{{ profile.avatar_url if profile and profile.avatar_url else url_for('static', filename='images/profile.jpg') }}" alt="avatar" />
               </div>
             </div>
             <h3 class="card-fullname">{{ profile.full_name if profile and profile.full_name else 'Your Name' }}</h3>
@@ -762,7 +831,7 @@
             <div class="form-group">
               <label for="editAvatar">Profile Picture:</label>
               <div class="avatar-upload-section">
-                <img id="editAvatarPreview" class="avatar-preview" src="{{ profile.avatar_url if profile and profile.avatar_url else url_for('static', filename='images/profile.jpg') }}{% if profile and profile.avatar_url %}?cache_buster={{ random_string(8) }}{% endif %}" alt="avatar preview">
+                <img id="editAvatarPreview" class="avatar-preview" src="{{ profile.avatar_url if profile and profile.avatar_url else url_for('static', filename='images/profile.jpg') }}" alt="avatar preview">
                 <input type="file" id="editAvatar" name="avatar" accept="image/*">
                 <p class="avatar-upload-hint">Click to upload a new profile picture</p>
               </div>
@@ -825,6 +894,35 @@
                     <input type="checkbox" id="emailNotificationToggle" checked>
                     <span class="slider round"></span>
                   </label>
+                </div>
+              </div>
+              <div class="settings-group">
+                <h4>Email Notification Preferences</h4>
+                <div class="setting-option">
+                  <span>Daily Task Reminders</span>
+                  <label class="switch">
+                    <input type="checkbox" id="dailyTaskReminderToggle" checked>
+                    <span class="slider round"></span>
+                  </label>
+                </div>
+                <div class="setting-option">
+                  <span>Task Due Date Reminders</span>
+                  <label class="switch">
+                    <input type="checkbox" id="dueDateReminderToggle" checked>
+                    <span class="slider round"></span>
+                  </label>
+                </div>
+                <div class="setting-option">
+                  <span>Task Completion Notifications</span>
+                  <label class="switch">
+                    <input type="checkbox" id="completionNotificationToggle" checked>
+                    <span class="slider round"></span>
+                  </label>
+                </div>
+                <div class="setting-option">
+                  <button id="testNotificationBtn" class="test-notification-btn">
+                    <i class="ri-mail-send-line"></i> Send Test Notification
+                  </button>
                 </div>
               </div>
             </li>
@@ -898,6 +996,126 @@
   <script src="https://cdn.jsdelivr.net/npm/chart.js@3.7.0/dist/chart.min.js"></script>
   <script src="{{ url_for('static', filename='js/dash_settings.js') }}"></script>
 
+  <!-- Add this script at the end of the body -->
+  <script>
+    // Function to get notification count
+    function getNotificationCount() {
+      const pendingList = document.querySelector('.pending-list');
+      if (pendingList) {
+        return pendingList.children.length;
+      }
+      return 0;
+    }
+
+    // Function to show popup
+    function showPopup() {
+      const count = getNotificationCount();
+      
+      if (count > 0) {
+        const popup = document.getElementById('notificationPopup');
+        const popupCount = document.getElementById('popupNotificationCount');
+        
+        popupCount.textContent = count;
+        popup.classList.add('show');
+      }
+    }
+
+    // Function to close popup
+    function closePopup() {
+      const popup = document.getElementById('notificationPopup');
+      popup.classList.remove('show');
+    }
+
+    // Function to fetch notifications
+    async function fetchNotifications() {
+      try {
+        const response = await fetch('/dashboard_data');
+        const data = await response.json();
+        
+        // Clear existing notifications
+        const pendingList = document.querySelector('.pending-list');
+        const completedList = document.querySelector('.completed-list');
+        if (pendingList) pendingList.innerHTML = '';
+        if (completedList) completedList.innerHTML = '';
+
+        // Add task notifications
+        if (data.task_data && data.task_data.pending_tasks_list && data.task_data.pending_tasks_list.length > 0) {
+          data.task_data.pending_tasks_list.forEach(task => {
+            let message = '';
+            let dueText = task.due_date ? ` (Due: ${task.due_date})` : '';
+            if (task.priority && task.priority.toLowerCase() === 'high') {
+              message = `⚠️ <b>${task.name}</b>${dueText} — <span style="color:#d32f2f">You have forgotten this high priority task!</span>`;
+            } else {
+              message = `<b>${task.name}</b>${dueText} — Don't forget to complete this task!`;
+            }
+            addNotification(message, 'pending');
+          });
+        }
+
+        // Add skill notifications
+        if (data.skill_data && data.skill_data.in_progress_skills_list && data.skill_data.in_progress_skills_list.length > 0) {
+          data.skill_data.in_progress_skills_list.forEach(skill => {
+            let endDateText = skill.expectedEndDate ? ` (Ends: ${skill.expectedEndDate})` : '';
+            let message = `<b>${skill.name}</b>${endDateText} — Keep going, you're making progress!`;
+            addNotification(message, 'pending');
+          });
+        }
+
+        // Add goal notifications
+        if (data.network_data && data.network_data.goals && data.network_data.goals.by_type) {
+          Object.entries(data.network_data.goals.by_type).forEach(([type, typeData]) => {
+            if (typeData.goals && typeData.goals.length > 0) {
+              const incompleteGoals = typeData.goals.filter(goal => goal.completed === 0);
+              if (incompleteGoals.length > 0) {
+                addNotification(`${incompleteGoals.length} incomplete ${type} goals`, 'pending');
+              }
+            }
+          });
+        }
+
+        // Add meeting notifications
+        if (data.network_data && data.network_data.upcoming_meetings && data.network_data.upcoming_meetings.length > 0) {
+          addNotification(`${data.network_data.upcoming_meetings.length} upcoming meetings`, 'pending');
+        }
+
+        // Show popup if there are notifications
+        showPopup();
+
+        return true;
+      } catch (error) {
+        console.error('Error fetching notifications:', error);
+        return false;
+      }
+    }
+
+    // Function to add notification
+    function addNotification(message, type = 'pending') {
+      const notificationList = type === 'pending' 
+        ? document.querySelector('.pending-list')
+        : document.querySelector('.completed-list');
+      
+      if (notificationList) {
+        const notificationItem = document.createElement('div');
+        notificationItem.className = 'notification-item';
+        notificationItem.innerHTML = `
+          <div class="notification-content">
+            <p>${message}</p>
+          </div>
+        `;
+        
+        notificationList.appendChild(notificationItem);
+      }
+    }
+
+    // Initialize notifications when the page loads
+    document.addEventListener('DOMContentLoaded', function() {
+      // Fetch notifications only once on page load
+      fetchNotifications();
+      
+      // Set up periodic refresh (every 5 minutes)
+      setInterval(fetchNotifications, 5 * 60 * 1000);
+    });
+  </script>
 </body>
 
 </html>
