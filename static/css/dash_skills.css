@@ -61,9 +61,8 @@
 
 .skills-actions {
   display: flex;
-  gap: 10px;
+  gap: 8px;
   align-items: center;
-  margin-top: 10px;
 }
 
 .add-button,
@@ -173,100 +172,156 @@
 
 .skill-actions {
   display: flex;
-  gap: 5px;
+  gap: 8px;
   align-items: center;
 }
 
-.skill-delete,
-.complete-button,
-.glance-button, /* Style for the new glance button */
-.notes-button,
-.documents-button {
-  cursor: pointer;
-  font-size: 1em;
-  padding: 5px 8px;
-  border-radius: 4px;
+.skill-actions button {
+  padding: 8px 12px;
   border: none;
-  background-color: #f0f0f0;
-}
-
-.glance-button {
-  color: #007bff; /* Example color */
-}
-
-.notes-button,
-.documents-button {
+  border-radius: 4px;
+  cursor: pointer;
+  transition: all 0.3s ease;
   display: flex;
   align-items: center;
   justify-content: center;
   gap: 4px;
-  padding: 6px 12px;
-  border-radius: 8px;
-  background: #fafafa;
-  border: none;
-  cursor: pointer;
-  transition: background 0.15s;
-  width: 100%;
-  height: 100%;
-  box-sizing: border-box;
+  font-size: 14px;
+  background: #f8f8f8;
 }
 
-.notes-button span, .documents-button span,
-.notes-button i, .documents-button i {
-  margin: 0;
-  padding: 0;
+.skill-actions button:hover {
+  transform: translateY(-2px);
+  box-shadow: 0 2px 4px rgba(0,0,0,0.1);
+}
+
+.skill-actions button i {
+  font-size: 16px;
+}
+
+.edit-button, .delete-button, .notes-button, .documents-button, .complete-button {
   background: none;
-  pointer-events: none;
+  border: none;
+  color: #666;
+  cursor: pointer;
+  padding: 8px;
+  border-radius: 4px;
+  transition: all 0.3s ease;
+  position: relative;
 }
 
-.notes-button:hover, .documents-button:hover {
-  background: #f3eaff;
+.edit-button:hover, .delete-button:hover, .notes-button:hover, .documents-button:hover, .complete-button:hover {
+  background: #f0f0f0;
+  color: #333;
 }
 
-.skill-delete {
-  color: red;
+/* Tooltip styles for all buttons */
+.edit-button::after, .delete-button::after, .notes-button::after, .documents-button::after, .complete-button::after {
+  content: attr(data-tooltip);
+  position: absolute;
+  bottom: 100%;
+  left: 50%;
+  transform: translateX(-50%);
+  padding: 5px 10px;
+  background: #333;
+  color: white;
+  border-radius: 4px;
+  font-size: 12px;
+  white-space: nowrap;
+  opacity: 0;
+  visibility: hidden;
+  transition: all 0.3s ease;
+  z-index: 1000;
+}
+
+.edit-button:hover::after, .delete-button:hover::after, .notes-button:hover::after, .documents-button:hover::after, .complete-button:hover::after {
+  opacity: 1;
+  visibility: visible;
+  bottom: calc(100% + 5px);
+}
+
+.edit-button::after {
+  content: "Edit";
+}
+
+.delete-button::after {
+  content: "Delete";
+}
+
+.notes-button::after {
+  content: "Notes";
+}
+
+.documents-button::after {
+  content: "Documents";
+}
+
+.complete-button::after {
+  content: "Complete";
+}
+
+.complete-button.completed::after {
+  content: "Undo";
 }
 
 .complete-button {
-  color: rgb(10, 128, 237); /* Default blue color */
+  color: #28a745;
+  background: #e8f5e9;
 }
 
 .complete-button:hover {
-  /* Optional: Style for hover state */
-  background-color: rgba(10, 128, 237, 0.1);
-  cursor: pointer;
+  background: #28a745;
+  color: white;
+  box-shadow: 0 4px 8px rgba(40, 167, 69, 0.2);
 }
 
-/* Style for the "Undo" state (when the skill is completed) */
-.skill-item.completed .complete-button {
-  color: green;
+.complete-button.completed {
+  color: #666;
+  background: #f0f0f0;
 }
 
-.skill-item.completed .complete-button:hover {
-  /* Optional: Hover style for "Undo" button */
-  background-color: rgba(0, 128, 0, 0.1);
-  cursor: pointer;
+.complete-button.completed:hover {
+  background: #666;
+  color: white;
+  box-shadow: 0 4px 8px rgba(102, 102, 102, 0.2);
 }
 
-.skill-name.completed {
-  text-decoration: line-through;
-  color: #777;
+.skill-actions .notes-count,
+.skill-actions .documents-count {
+  background: rgba(138, 43, 226, 0.1);
+  padding: 2px 6px;
+  border-radius: 10px;
+  font-size: 12px;
+  color: #8a2be2;
+  transition: all 0.3s ease;
 }
 
-.view-toggle,
-.sort-toggle {
-  background-color: transparent;
-  border: none;
-  cursor: pointer;
-  padding: 5px 10px;
-  border-radius: 4px;
-  display: flex;
-  align-items: center;
+.notes-button:hover .notes-count,
+.documents-button:hover .documents-count {
+  background: rgba(255, 255, 255, 0.2);
+  color: white;
 }
 
-.view-toggle:hover,
-.sort-toggle:hover {
-  background-color: #f0f0f0;
+/* Responsive styles for mobile */
+@media screen and (max-width: 768px) {
+  .skill-actions {
+    flex-wrap: wrap;
+    gap: 4px;
+  }
+
+  .skill-actions button {
+    padding: 6px 10px;
+    font-size: 12px;
+  }
+
+  .skill-actions button:hover {
+    transform: translateY(-1px);
+    box-shadow: 0 2px 4px rgba(0,0,0,0.1);
+  }
+
+  .skill-actions button i {
+    font-size: 14px;
+  }
 }
 
 /* Suggestions container style */
@@ -586,12 +641,11 @@
 }
 
 .skill-actions button:hover {
-  background-color: #8a2be2;
-  color: white;
+  transform: translateY(-2px);
 }
 
 .skill-actions i:hover {
-  color: #8a2be2;
+  color: inherit;
 }
 
 .skill-progress-bar::-webkit-progress-value {
@@ -899,6 +953,136 @@
 
 .catalog-link:hover {
     background-color: #6a1cb2;
+}
+
+/* Edit Modal Styles */
+#editModal {
+    position: fixed;
+    left: 0;
+    top: 0;
+    width: 100%;
+    height: 100%;
+    background-color: rgba(0, 0, 0, 0.5);
+    display: none;
+    justify-content: center;
+    align-items: flex-start;
+    z-index: 1000;
+    padding-top: 50px;
+    opacity: 0;
+    transition: opacity 0.3s ease;
+}
+
+#editModal.show {
+    display: flex;
+    opacity: 1;
+}
+
+#editModal .modal-content {
+    background: #fff;
+    border-radius: 8px;
+    box-shadow: 0 2px 16px rgba(138,43,226,0.10), 0 1px 3px rgba(0,0,0,0.08);
+    padding: 20px;
+    width: 90%;
+    max-width: 500px;
+    max-height: 80vh;
+    overflow-y: auto;
+    position: relative;
+    transform: translateY(-20px);
+    transition: transform 0.3s ease;
+}
+
+#editModal.show .modal-content {
+    transform: translateY(0);
+}
+
+#editModal .skills-input {
+    display: flex;
+    flex-direction: column;
+    gap: 15px;
+    margin: 20px 0;
+}
+
+#editModal .skills-input label {
+    font-weight: 600;
+    color: #2d1e4a;
+    font-size: 0.95em;
+}
+
+#editModal .skills-input input,
+#editModal .skills-input select {
+    padding: 10px;
+    border: 1px solid #d1c4e9;
+    border-radius: 4px;
+    font-size: 0.95em;
+    transition: all 0.3s ease;
+}
+
+#editModal .skills-input input:focus,
+#editModal .skills-input select:focus {
+    border-color: #8a2be2;
+    box-shadow: 0 0 0 2px rgba(138,43,226,0.1);
+    outline: none;
+}
+
+.modal-actions {
+    display: flex;
+    gap: 10px;
+    justify-content: flex-end;
+    margin-top: 20px;
+}
+
+#saveEdit {
+    background: #8a2be2;
+    color: white;
+    border: none;
+    padding: 10px 20px;
+    border-radius: 4px;
+    cursor: pointer;
+    font-weight: 600;
+    transition: all 0.3s ease;
+}
+
+#saveEdit:hover {
+    background: #6d1bb3;
+    transform: translateY(-2px);
+    box-shadow: 0 4px 8px rgba(138,43,226,0.2);
+}
+
+#cancelEdit {
+    background: #f3eaff;
+    color: #8a2be2;
+    border: none;
+    padding: 10px 20px;
+    border-radius: 4px;
+    cursor: pointer;
+    font-weight: 600;
+    transition: all 0.3s ease;
+}
+
+#cancelEdit:hover {
+    background: #e0d6f7;
+    transform: translateY(-2px);
+    box-shadow: 0 4px 8px rgba(138,43,226,0.1);
+}
+
+/* Responsive adjustments */
+@media screen and (max-width: 768px) {
+    #editModal {
+        padding-top: 20px;
+    }
+    
+    #editModal .modal-content {
+        width: 95%;
+        padding: 15px;
+    }
+    
+    .modal-actions {
+        flex-direction: column;
+    }
+    
+    #saveEdit, #cancelEdit {
+        width: 100%;
+    }
 }
 
 

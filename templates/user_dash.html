@@ -509,7 +509,45 @@
             <span class="close-button">&times;</span>
             <h2>Notes for <span id="notesSkillName"></span></h2>
             <div id="notesList">
-                </div>
+            </div>
+        </div>
+    </div>
+  
+    <div id="editModal" class="modal">
+        <div class="modal-content">
+            <span class="close-button">&times;</span>
+            <h2>Edit Skill</h2>
+            <div class="skills-input">
+                <label for="editSkillName">Skill Name:</label>
+                <input type="text" id="editSkillName" placeholder="Enter skill name">
+                
+                <label for="editLearningSource">Learning Source:</label>
+                <input type="text" id="editLearningSource" placeholder="Where are you learning from?">
+                
+                <label for="editStartDate">Start Date:</label>
+                <input type="text" id="editStartDate" class="flatpickr" placeholder="Select start date">
+                
+                <label for="editEndDate">Expected End Date:</label>
+                <input type="text" id="editEndDate" class="flatpickr" placeholder="Select end date">
+                
+                <label for="editSkillLevel">Skill Level:</label>
+                <select id="editSkillLevel">
+                    <option value="beginner">Beginner</option>
+                    <option value="intermediate">Intermediate</option>
+                    <option value="advanced">Advanced</option>
+                </select>
+                
+                <label for="editSkillPriority">Priority:</label>
+                <select id="editSkillPriority">
+                    <option value="low">Low</option>
+                    <option value="medium">Medium</option>
+                    <option value="high">High</option>
+                </select>
+            </div>
+            <div class="modal-actions">
+                <button id="saveEdit" class="save-button">Save Changes</button>
+                <button id="cancelEdit" class="cancel-button">Cancel</button>
+            </div>
         </div>
     </div>
   
@@ -592,8 +630,7 @@
           </div>
           <div class="form-group">
               <label for="contactCategory">Category:</label>
-              <select id="contactCategory" name="contactCategory">
-                  <option value="" disabled selected>Category</option>
+              <select id="contactCategory" name="contactCategory" required>
                   <option value="friends">Friends</option>
                   <option value="colleagues">Colleagues</option>
                   <option value="mentors">Mentors</option>
@@ -775,7 +812,6 @@
             <!-- Tab Buttons -->
             <div class="card-buttons">
               <button data-section="#about">ABOUT</button>
-              <button data-section="#experience">PERFORMANCE</button>
               <button data-section="#contact" class="is-active">CONTACT</button>
             </div>
           </div>

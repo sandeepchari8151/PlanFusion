@@ -87,26 +87,46 @@ document.addEventListener("DOMContentLoaded", function () {
     document.getElementById('contactForm').addEventListener('submit', async function(e) {
         e.preventDefault();
         
+        // Get form values
+        const name = document.getElementById('contactName').value.trim();
+        const email = document.getElementById('contactEmail').value.trim();
+        const phone = document.getElementById('contactPhone').value.trim();
+        const category = document.getElementById('contactCategory').value;
+        const lastInteraction = document.getElementById('lastInteraction').value;
+        const notes = document.getElementById('interactionNotes').value.trim();
+
+        // Validate required fields
+        if (!name) {
+            alert('Name is required');
+            return;
+        }
+
+        if (!category) {
+            alert('Category is required');
+            return;
+        }
+
         const formData = {
-            name: document.getElementById('contactName').value,
-            email: document.getElementById('contactEmail').value,
-            phone: document.getElementById('contactPhone').value,
-            category: document.getElementById('contactCategory').value,
-            lastInteraction: document.getElementById('lastInteraction').value,
-            notes: document.getElementById('interactionNotes').value
+            name,
+            email: email || undefined,
+            phone: phone || undefined,
+            category,
+            lastInteraction: lastInteraction || undefined,
+            notes: notes || undefined
         };
 
         try {
             const response = await fetch('/api/contacts', {
-                        method: 'POST',
+                method: 'POST',
                 headers: {
                     'Content-Type': 'application/json',
                 },
                 body: JSON.stringify(formData)
             });
 
-                    if (!response.ok) {
-                throw new Error(`Failed to add contact: ${response.status}`);
+            if (!response.ok) {
+                const errorData = await response.json();
+                throw new Error(errorData.message || `Failed to add contact: ${response.status}`);
             }
 
             const newContact = await response.json();
@@ -122,7 +142,7 @@ document.addEventListener("DOMContentLoaded", function () {
             
         } catch (error) {
             console.error('Error adding contact:', error);
-            alert('Failed to add contact. Please try again.');
+            alert(error.message || 'Failed to add contact. Please try again.');
         }
     });
 

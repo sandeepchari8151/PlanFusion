@@ -11,7 +11,7 @@ from flask import (
 )
 from flask_wtf import FlaskForm
 from wtforms import StringField, PasswordField, SubmitField
-from wtforms.validators import DataRequired, Email
+from wtforms.validators import DataRequired, Email, ValidationError
 from flask_mail import Mail, Message
 from dotenv import load_dotenv
 from werkzeug.utils import secure_filename  # Import secure_filename
@@ -20,6 +20,7 @@ from bson.objectid import ObjectId
 from flask_cors import CORS  # Import CORS
 from apscheduler.schedulers.background import BackgroundScheduler
 from dateutil.rrule import rrule, DAILY
+import re
 
 # ✅ Load environment variables
 if os.path.exists('.env'):
@@ -48,11 +49,16 @@ app.config.update(
     MAIL_PASSWORD=os.getenv('MAIL_PASSWORD', 'lvyr tleq ssxi spyw'),
     MAIL_DEFAULT_SENDER=os.getenv('MAIL_DEFAULT_SENDER', 'planfusion123@gmail.com'),
     MONGODB_URI=os.getenv('MONGODB_URI', 'mongodb://localhost:27017/sandeepdb'),  # Updated to URI
-    UPLOAD_FOLDER='static/uploads',  # Folder to store uploaded avatars
-    UPLOAD_FOLDER_DOCS='static/documents',  # Folder for uploaded documents
+    UPLOAD_FOLDER=os.path.join(os.path.dirname(os.path.abspath(__file__)), 'static', 'uploads'),  # Absolute path for uploads
+    UPLOAD_FOLDER_DOCS=os.path.join(os.path.dirname(os.path.abspath(__file__)), 'static', 'documents'),  # Absolute path for documents
     ALLOWED_EXTENSIONS={'png', 'jpg', 'jpeg', 'gif'},  # Allowed image extensions
-    ALLOWED_EXTENSIONS_DOCS={'pdf', 'doc', 'docx'}  # Allowed document extensions
+    ALLOWED_EXTENSIONS_DOCS={'pdf', 'doc', 'docx'},  # Allowed document extensions
+    ALLOWED_EXTENSIONS_CERT={'pdf', 'png', 'jpg', 'jpeg'}  # Allowed certificate extensions
 )
+
+# Create upload directories if they don't exist
+os.makedirs(app.config['UPLOAD_FOLDER'], exist_ok=True)
+os.makedirs(app.config['UPLOAD_FOLDER_DOCS'], exist_ok=True)
 
 # ✅ Initialize Extensions
 mail = Mail(app)
@@ -255,6 +261,10 @@ def allowed_file_docs(filename):
     return '.' in filename and filename.rsplit('.', 1)[1].lower() in app.config['ALLOWED_EXTENSIONS_DOCS']
 
 
+def allowed_file_cert(filename):
+    return '.' in filename and filename.rsplit('.', 1)[1].lower() in app.config['ALLOWED_EXTENSIONS_CERT']
+
+
 def random_string(length):
     return ''.join(random.choices(string.ascii_letters + string.digits, k=length))
 
@@ -262,10 +272,22 @@ def random_string(length):
 app.jinja_env.globals['random_string'] = random_string  # Make it available in templates
 
 # ✅ Forms
+def password_validator(form, field):
+    password = field.data
+    if len(password) < 8:
+        raise ValidationError('Password must be at least 8 characters long.')
+    if not re.search(r'[A-Z]', password):
+        raise ValidationError('Password must contain at least one uppercase letter.')
+    if not re.search(r'[!@#$%^&*(),.?":{}|<>]', password):
+        raise ValidationError('Password must contain at least one special character.')
+
 class RegisterForm(FlaskForm):
     name = StringField("Name", validators=[DataRequired()])
     email = StringField("Email", validators=[DataRequired(), Email()])
-    password = PasswordField("Password", validators=[DataRequired()])
+    password = PasswordField("Password", validators=[
+        DataRequired(),
+        password_validator
+    ])
     submit = SubmitField("Sign Up")
 
 
@@ -294,19 +316,43 @@ def register():
 
         user = find_one("users", {"email": email})
         if user:
-            flash("Email already exists. Please choose a different email.", "danger")
+            flash("This email address is already registered. Please use a different email or try logging in.", "danger")
             return render_template('register.html', form=form)
 
-        hashed_password = bcrypt.hashpw(password.encode(), bcrypt.gensalt()).decode()
         try:
+            hashed_password = bcrypt.hashpw(password.encode(), bcrypt.gensalt()).decode()
             user_data = {"name": name, "email": email, "password": hashed_password}
             insert_one("users", user_data)
             logging.info(f"User registered: {email}")
-            flash("Registration successful! You can now log in.", "success")
+            flash("Registration successful! You can now log in to your account.", "success")
             return redirect(url_for('login'))
         except Exception as e:
             logging.error(f"Registration error: {e}")
-            flash("There was an error during registration.", "danger")
+            flash("There was an error during registration. Please try again later.", "danger")
+    elif form.errors:
+        for field, errors in form.errors.items():
+            if field == 'password':
+                for error in errors:
+                    if 'uppercase' in error.lower():
+                        flash("Password must contain at least one uppercase letter.", "danger")
+                    elif 'special' in error.lower():
+                        flash("Password must contain at least one special character (!@#$%^&*(),.?\":{}|<>).", "danger")
+                    elif '8 characters' in error.lower():
+                        flash("Password must be at least 8 characters long.", "danger")
+                    else:
+                        flash(f"Password: {error}", "danger")
+            elif field == 'email':
+                for error in errors:
+                    if 'valid email' in error.lower():
+                        flash("Please enter a valid email address.", "danger")
+                    else:
+                        flash(f"Email: {error}", "danger")
+            elif field == 'name':
+                for error in errors:
+                    flash(f"Name: {error}", "danger")
+            else:
+                for error in errors:
+                    flash(f"{field}: {error}", "danger")
 
     return render_template('register.html', form=form)
 
@@ -364,25 +410,54 @@ def login():
         password = form.password.data.strip()
         remember = request.form.get('remember')
 
+        # Check if account is locked
+        is_locked, lock_message = is_account_locked(email)
+        if is_locked:
+            flash(lock_message, "danger")
+            return render_template('login.html', form=form)
+
         user = find_one("users", {"email": email})
-        if user and bcrypt.checkpw(password.encode(), user['password'].encode()):
-            session['user_email'] = user['email']
-            session.permanent = bool(remember)
-            logging.info(f"Login successful for {user['email']}")
+        if not user:
+            logging.warning(f"Login attempt with non-existent email: {email}")
+            flash("Invalid email address.", "danger")
+            return render_template('login.html', form=form)
             
-            # Get notification count
-            notification_count = get_notification_count(user['email'])
+        if not bcrypt.checkpw(password.encode(), user['password'].encode()):
+            logging.warning(f"Failed login attempt for {email} - wrong password")
+            record_failed_attempt(email)
             
-            # Show success message with notification count
-            if notification_count > 0:
-                flash(f"Login successful! You have {notification_count} new notifications.", "success")
+            # Check if account is now locked after this attempt
+            is_locked, lock_message = is_account_locked(email)
+            if is_locked:
+                flash(lock_message, "danger")
             else:
-                flash("Login successful!", "success")
-                
-            return redirect(url_for('user_dash'))
+                remaining_attempts = 3 - login_attempts_collection.find_one({'email': email}).get('attempts', 0)
+                flash(f"Incorrect password. {remaining_attempts} attempts remaining.", "danger")
+            return render_template('login.html', form=form)
+            
+        # If we get here, both email and password are correct
+        session['user_email'] = user['email']
+        session.permanent = bool(remember)
+        logging.info(f"Login successful for {user['email']}")
+        
+        # Reset login attempts after successful login
+        reset_login_attempts(email)
+        
+        # Get notification count
+        notification_count = get_notification_count(user['email'])
+        
+        # Show success message with notification count
+        if notification_count > 0:
+            flash(f"Login successful! You have {notification_count} new notifications.", "success")
         else:
-            logging.warning(f"Failed login attempt for {email}")
-            flash("Invalid email or password.", "danger")
+            flash("Login successful!", "success")
+            
+        return redirect(url_for('user_dash'))
+    elif form.errors:
+        for field, errors in form.errors.items():
+            for error in errors:
+                flash(f"{field}: {error}", "danger")
+                
     return render_template('login.html', form=form)
 
 
@@ -414,6 +489,14 @@ def forgot_password():
     return render_template('forgot_password.html')
 
 
+class ResetPasswordForm(FlaskForm):
+    new_password = PasswordField("New Password", validators=[
+        DataRequired(),
+        password_validator
+    ])
+    confirm_password = PasswordField("Confirm Password", validators=[DataRequired()])
+    submit = SubmitField("Reset Password")
+
 @app.route('/reset_password/<token>', methods=['GET', 'POST'])
 def reset_password(token):
     """
@@ -422,32 +505,56 @@ def reset_password(token):
     reset_data = find_one("password_resets", {"token": token})
 
     if not reset_data:
-        flash("Invalid or expired token.", "danger")
+        flash("Invalid or expired reset link. Please request a new password reset.", "danger")
         return redirect(url_for('login'))
 
     email = reset_data['email']
     expires_at = reset_data['expires_at']
     if datetime.utcnow() > expires_at:
-        flash("This reset link has expired.", "danger")
+        flash("This reset link has expired. Please request a new password reset.", "danger")
         return redirect(url_for('forgot_password'))
 
-    if request.method == 'POST':
-        new_password = request.form.get('new_password')
-        confirm_password = request.form.get('confirm_password')
+    form = ResetPasswordForm()
+    if form.validate_on_submit():
+        new_password = form.new_password.data
+        confirm_password = form.confirm_password.data
 
-        if not new_password or not confirm_password:
-            flash("Please fill out all fields.", "danger")
-        elif new_password != confirm_password:
-            flash("Passwords do not match.", "danger")
-        else:
-            hashed_password = bcrypt.hashpw(
-                new_password.encode('utf-8'), bcrypt.gensalt()).decode('utf-8')
-            update_one("users", {"email": email}, {"password": hashed_password})
-            delete_one("password_resets", {"token": token})
-            flash("Your password has been reset. Please login.", "success")
-            return redirect(url_for('login'))
+        if new_password != confirm_password:
+            flash("Passwords do not match. Please try again.", "danger")
+            return render_template('reset_password.html', form=form, token=token)
 
-    return render_template('reset_password.html', token=token)
+        try:
+            # Update the password in the database
+            hashed_password = bcrypt.hashpw(new_password.encode('utf-8'), bcrypt.gensalt()).decode('utf-8')
+            result = update_one("users", {"email": email}, {"password": hashed_password})
+            
+            if result:
+                # Delete the reset token
+                delete_one("password_resets", {"token": token})
+                flash("Your password has been reset successfully. Please login with your new password.", "success")
+                return redirect(url_for('login'))
+            else:
+                flash("Failed to update password. Please try again.", "danger")
+        except Exception as e:
+            logging.error(f"Error resetting password: {str(e)}")
+            flash("There was an error resetting your password. Please try again later.", "danger")
+    elif form.errors:
+        for field, errors in form.errors.items():
+            if field == 'new_password':
+                for error in errors:
+                    if 'uppercase' in error.lower():
+                        flash("Password must contain at least one uppercase letter.", "danger")
+                    elif 'special' in error.lower():
+                        flash("Password must contain at least one special character (!@#$%^&*(),.?\":{}|<>).", "danger")
+                    elif '8 characters' in error.lower():
+                        flash("Password must be at least 8 characters long.", "danger")
+                    else:
+                        flash(f"Password: {error}", "danger")
+            elif field == 'confirm_password':
+                for error in errors:
+                    flash("Please confirm your password.", "danger")
+
+    return render_template('reset_password.html', form=form, token=token)
 
 
 @app.route('/user_dash')
@@ -777,7 +884,7 @@ def update_task_status(task_id):
 @app.route('/contact', methods=['POST'])
 def contact():
     """
-    Handles contact form submissions.
+    Handles contact form submissions and sends the message to the PlanFusion email.
     """
     name = request.form.get("name")
     email = request.form.get("email")
@@ -787,8 +894,23 @@ def contact():
         flash("All fields are required!", "danger")
         return redirect(url_for("dash"))
 
-    # Store or send message logic
-    flash("Message sent successfully!", "success")
+    # Send the message to the PlanFusion email
+    try:
+        planfusion_email = app.config.get('MAIL_DEFAULT_SENDER', 'planfusion123@gmail.com')
+        subject = f"Contact Us Message from {name}"
+        body = f"""
+        <h3>New Contact Us Submission</h3>
+        <p><strong>Name:</strong> {name}</p>
+        <p><strong>Email:</strong> {email}</p>
+        <p><strong>Message:</strong><br>{message}</p>
+        """
+        msg = Message(subject=subject, recipients=[planfusion_email])
+        msg.html = body
+        mail.send(msg)
+        flash("Message sent successfully!", "success")
+    except Exception as e:
+        app.logger.error(f"Error sending contact us message: {str(e)}")
+        flash("There was an error sending your message. Please try again later.", "danger")
     return redirect(url_for("dash"))
 
 # Profile Section
@@ -959,6 +1081,7 @@ def upload_avatar():
 contacts_collection = db.contacts
 goals_collection = db.goals
 skills_collection = db.skills  # Add skills collection
+login_attempts_collection = db['login_attempts']
 
 def format_date(date_str):
     return datetime.strptime(date_str, '%Y-%m-%d').strftime('%Y-%m-%d') if date_str else None
@@ -1305,48 +1428,174 @@ def delete_skill(skill_id):
 @app.route('/api/upload_document', methods=['POST'])
 @login_required
 def upload_document():
-    email = session['user_email']
-    if 'document' not in request.files:
-        return jsonify({'message': 'No file part in the request'}), 400
-    file = request.files['document']
-    if file.filename == '':
-        return jsonify({'message': 'No file selected for uploading'}), 400
-    if file and allowed_file_docs(file.filename):
+    try:
+        email = session['user_email']
+        app.logger.info(f"Document upload request received from user: {email}")
+        
+        if 'document' not in request.files:
+            app.logger.error("No file part in request")
+            return jsonify({'message': 'No file part in the request'}), 400
+            
+        file = request.files['document']
+        if file.filename == '':
+            app.logger.error("No selected file")
+            return jsonify({'message': 'No file selected for uploading'}), 400
+            
+        app.logger.info(f"File received: {file.filename}")
+        
+        if not file or not allowed_file_docs(file.filename):
+            app.logger.error(f"Invalid file type: {file.filename}")
+            return jsonify({'message': 'Invalid file type. Allowed types: pdf, doc, docx'}), 400
+            
         skill_id = request.form.get('skillId')
         if not skill_id:
+            app.logger.error("No skill ID provided")
             return jsonify({'message': 'Skill ID is required'}), 400
 
         # Verify the skill belongs to the user
         skill = skills_collection.find_one({'_id': ObjectId(skill_id), 'user_email': email})
         if not skill:
+            app.logger.error(f"Skill not found or unauthorized: {skill_id}")
             return jsonify({'message': 'Skill not found or unauthorized'}), 404
 
-        filename = secure_filename(file.filename)
-        filepath = os.path.join(app.config['UPLOAD_FOLDER_DOCS'], filename)
-        os.makedirs(app.config['UPLOAD_FOLDER_DOCS'], exist_ok=True)
         try:
+            # Ensure the upload directory exists
+            upload_dir = app.config['UPLOAD_FOLDER_DOCS']
+            if not os.path.exists(upload_dir):
+                app.logger.info(f"Creating upload directory: {upload_dir}")
+                os.makedirs(upload_dir)
+                app.logger.info(f"Created upload directory: {upload_dir}")
+
+            # Create a unique filename to avoid collisions
+            filename = secure_filename(f"{datetime.now().strftime('%Y%m%d_%H%M%S')}_{file.filename}")
+            
+            # Full path for the file using the absolute path from config
+            filepath = os.path.join(upload_dir, filename)
+            app.logger.info(f"Attempting to save file to: {filepath}")
+            
+            # Save the file
             file.save(filepath)
-        except Exception as e:
-            return jsonify({'message': f'Error saving uploaded file: {str(e)}'}), 500
-
-        # Store the file path or a URL in the skill document in MongoDB
-        document_url = url_for('static', filename=f'documents/{filename}')
-
-        try:
+            app.logger.info(f"File saved successfully at: {filepath}")
+            
+            # Create the URL for the file
+            document_url = url_for('static', filename=f'documents/{filename}')
+            app.logger.info(f"Document URL created: {document_url}")
+            
+            # Update the database
             result = skills_collection.update_one(
                 {'_id': ObjectId(skill_id), 'user_email': email},
                 {'$push': {'documents': document_url}}
             )
+            
             if result.modified_count > 0:
-                return jsonify({'message': 'Document uploaded and associated with skill', 'url': document_url}), 200
+                app.logger.info(f"Successfully updated skill {skill_id} with new document")
+                return jsonify({
+                    'message': 'Document uploaded and associated with skill',
+                    'url': document_url
+                }), 200
             else:
-                os.remove(filepath) # Remove the uploaded file if DB update fails
+                app.logger.error(f"Failed to update skill {skill_id} with new document")
+                os.remove(filepath)  # Clean up the file if DB update fails
                 return jsonify({'message': 'Failed to associate document with skill'}), 500
+                
         except Exception as e:
-            os.remove(filepath) # Remove the uploaded file if there's a DB error
-            return jsonify({'message': f'Error updating skill document: {str(e)}'}), 500
-    else:
-        return jsonify({'message': 'Invalid file type'}), 400
+            app.logger.error(f"Error in document upload: {str(e)}")
+            # Try to clean up the file if it was created
+            try:
+                if 'filepath' in locals() and os.path.exists(filepath):
+                    os.remove(filepath)
+            except Exception as cleanup_error:
+                app.logger.error(f"Error cleaning up file: {str(cleanup_error)}")
+            return jsonify({'message': f'Error uploading document: {str(e)}'}), 500
+    except Exception as e:
+        app.logger.error(f"Unexpected error in upload_document: {str(e)}")
+        return jsonify({'message': f'An unexpected error occurred: {str(e)}'}), 500
+
+@app.route('/api/upload_certificate', methods=['POST'])
+@login_required
+def upload_certificate():
+    try:
+        email = session['user_email']
+        app.logger.info(f"Certificate upload request received from user: {email}")
+        
+        if 'certificate' not in request.files:
+            app.logger.error("No file part in request")
+            return jsonify({'message': 'No file part in the request'}), 400
+            
+        file = request.files['certificate']
+        if file.filename == '':
+            app.logger.error("No selected file")
+            return jsonify({'message': 'No file selected for uploading'}), 400
+            
+        app.logger.info(f"File received: {file.filename}")
+        
+        if not file or not allowed_file_cert(file.filename):
+            app.logger.error(f"Invalid file type: {file.filename}")
+            return jsonify({'message': 'Invalid file type. Allowed types: pdf, png, jpg, jpeg'}), 400
+            
+        skill_id = request.form.get('skillId')
+        if not skill_id:
+            app.logger.error("No skill ID provided")
+            return jsonify({'message': 'Skill ID is required'}), 400
+
+        # Verify the skill belongs to the user
+        skill = skills_collection.find_one({'_id': ObjectId(skill_id), 'user_email': email})
+        if not skill:
+            app.logger.error(f"Skill not found or unauthorized: {skill_id}")
+            return jsonify({'message': 'Skill not found or unauthorized'}), 404
+
+        try:
+            # Ensure the upload directory exists
+            upload_dir = os.path.join(app.config['UPLOAD_FOLDER_DOCS'], 'certificates')
+            if not os.path.exists(upload_dir):
+                app.logger.info(f"Creating upload directory: {upload_dir}")
+                os.makedirs(upload_dir)
+                app.logger.info(f"Created upload directory: {upload_dir}")
+
+            # Create a unique filename to avoid collisions
+            filename = secure_filename(f"{datetime.now().strftime('%Y%m%d_%H%M%S')}_{file.filename}")
+            
+            # Full path for the file using the absolute path from config
+            filepath = os.path.join(upload_dir, filename)
+            app.logger.info(f"Attempting to save file to: {filepath}")
+            
+            # Save the file
+            file.save(filepath)
+            app.logger.info(f"File saved successfully at: {filepath}")
+            
+            # Create the URL for the file
+            certificate_url = url_for('static', filename=f'documents/certificates/{filename}')
+            app.logger.info(f"Certificate URL created: {certificate_url}")
+            
+            # Update the database
+            result = skills_collection.update_one(
+                {'_id': ObjectId(skill_id), 'user_email': email},
+                {'$set': {'completionCertificate': certificate_url}}
+            )
+            
+            if result.modified_count > 0:
+                app.logger.info(f"Successfully updated skill {skill_id} with new certificate")
+                return jsonify({
+                    'message': 'Certificate uploaded and associated with skill',
+                    'url': certificate_url
+                }), 200
+            else:
+                app.logger.error(f"Failed to update skill {skill_id} with new certificate")
+                os.remove(filepath)  # Clean up the file if DB update fails
+                return jsonify({'message': 'Failed to associate certificate with skill'}), 500
+                
+        except Exception as e:
+            app.logger.error(f"Error in certificate upload: {str(e)}")
+            # Try to clean up the file if it was created
+            try:
+                if 'filepath' in locals() and os.path.exists(filepath):
+                    os.remove(filepath)
+            except Exception as cleanup_error:
+                app.logger.error(f"Error cleaning up file: {str(cleanup_error)}")
+            return jsonify({'message': f'Error uploading certificate: {str(e)}'}), 500
+    except Exception as e:
+        app.logger.error(f"Unexpected error in upload_certificate: {str(e)}")
+        return jsonify({'message': f'An unexpected error occurred: {str(e)}'}), 500
 
 # --- Dashboard Tasks API Endpoints ---
 @app.route('/api/dashboard/tasks', methods=['GET'])
@@ -1720,6 +1969,61 @@ def update_skill_day(skill_id, date):
     except Exception as e:
         app.logger.error(f"Error updating skill day: {str(e)}")
         return jsonify({'message': f'An error occurred while updating the skill day: {str(e)}'}), 500
+
+def is_account_locked(email):
+    """
+    Check if an account is locked due to too many failed login attempts.
+    """
+    attempt = login_attempts_collection.find_one({'email': email})
+    if attempt:
+        if attempt.get('attempts', 0) >= 3:
+            lock_time = attempt.get('lock_time')
+            if lock_time and datetime.utcnow() < lock_time:
+                remaining_time = lock_time - datetime.utcnow()
+                minutes = int(remaining_time.total_seconds() / 60)
+                return True, f"Account is locked. Please try again in {minutes} minutes."
+            else:
+                # Reset attempts if lock time has expired
+                login_attempts_collection.update_one(
+                    {'email': email},
+                    {'$set': {'attempts': 0, 'lock_time': None}}
+                )
+    return False, None
+
+def record_failed_attempt(email):
+    """
+    Record a failed login attempt and lock account if necessary.
+    """
+    attempt = login_attempts_collection.find_one({'email': email})
+    if not attempt:
+        login_attempts_collection.insert_one({
+            'email': email,
+            'attempts': 1,
+            'lock_time': None
+        })
+    else:
+        new_attempts = attempt.get('attempts', 0) + 1
+        if new_attempts >= 3:
+            # Lock account for 1 hour
+            lock_time = datetime.utcnow() + timedelta(hours=1)
+            login_attempts_collection.update_one(
+                {'email': email},
+                {'$set': {'attempts': new_attempts, 'lock_time': lock_time}}
+            )
+        else:
+            login_attempts_collection.update_one(
+                {'email': email},
+                {'$set': {'attempts': new_attempts}}
+            )
+
+def reset_login_attempts(email):
+    """
+    Reset login attempts after successful login.
+    """
+    login_attempts_collection.update_one(
+        {'email': email},
+        {'$set': {'attempts': 0, 'lock_time': None}}
+    )
 
 # ✅ Run App
 if __name__ == '__main__':

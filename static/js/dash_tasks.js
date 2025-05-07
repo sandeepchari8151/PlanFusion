@@ -563,11 +563,11 @@ document.addEventListener("DOMContentLoaded", function () {
             form.addEventListener('submit', async (e) => {
                 e.preventDefault();
                 const updatedTask = {
-                    name: document.getElementById('editTaskName').value,
-                    priority: document.getElementById('editTaskPriority').value,
-                    due_date: document.getElementById('editTaskDueDate').value,
-                    reminder: document.getElementById('editTaskReminder').value,
-                    notes: document.getElementById('editTaskNotes').value
+                    name: document.getElementById('editTaskName')?.value || '',
+                    priority: document.getElementById('editTaskPriority')?.value || 'low',
+                    due_date: document.getElementById('editTaskDueDate')?.value || '',
+                    reminder: document.getElementById('editTaskReminder')?.value || '',
+                    notes: document.getElementById('editTaskNotes')?.value || ''
                 };
 
                 try {

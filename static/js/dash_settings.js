@@ -411,61 +411,52 @@ async function fetchAndUpdateNotifications() {
         if (pendingList) pendingList.innerHTML = '';
         if (completedList) completedList.innerHTML = '';
 
+        let totalNotifications = 0;
+
         // Add task notifications
-        if (data.task_data && data.task_data.pending_tasks_list && data.task_data.pending_tasks_list.length > 0) {
-            data.task_data.pending_tasks_list.forEach(task => {
-                let message = '';
-                let dueText = task.due_date ? ` (Due: ${task.due_date})` : '';
-                let extraClass = '';
-                if (task.priority && task.priority.toLowerCase() === 'high') {
-                    message = `⚠️ <b>${task.name}</b>${dueText} — <span style=\"color:#d32f2f\">You have forgotten this high priority task!</span>`;
-                    extraClass = 'high-priority-notification';
-                } else if (task.priority && task.priority.toLowerCase() === 'medium') {
-                    message = `🟡 <b>${task.name}</b>${dueText} — <span style=\"color:#b8860b\">This task needs your attention soon!</span>`;
-                    extraClass = 'medium-priority-notification';
-                } else {
-                    message = `<b>${task.name}</b>${dueText} — Don't forget to complete this task!`;
-                }
-                addNotification(message, 'pending', extraClass);
-            });
+        if (data.task_data) {
+            // Add pending tasks
+            if (data.task_data.pending_tasks_list && data.task_data.pending_tasks_list.length > 0) {
+                totalNotifications += data.task_data.pending_tasks_list.length;
+                data.task_data.pending_tasks_list.forEach(task => {
+                    let message = '';
+                    let dueText = task.due_date ? ` (Due: ${task.due_date})` : '';
+                    let extraClass = '';
+                    if (task.priority && task.priority.toLowerCase() === 'high') {
+                        message = `⚠️ <b>${task.name}</b>${dueText} — <span style=\"color:#d32f2f\">You have forgotten this high priority task!</span>`;
+                        extraClass = 'high-priority-notification';
+                    } else if (task.priority && task.priority.toLowerCase() === 'medium') {
+                        message = `🟡 <b>${task.name}</b>${dueText} — <span style=\"color:#b8860b\">This task needs your attention soon!</span>`;
+                        extraClass = 'medium-priority-notification';
+                    } else {
+                        message = `<b>${task.name}</b>${dueText} — Don't forget to complete this task!`;
+                    }
+                    addNotification(message, 'pending', extraClass);
+                });
+            }
+
+            // Add completed tasks
+            if (data.task_data.completed > 0) {
+                addNotification(
+                    `You've completed ${data.task_data.completed} task${data.task_data.completed > 1 ? 's' : ''} (${data.task_data.completion_percentage}%)`,
+                    'completed'
+                );
+            }
         }
 
         // Add in-progress skills notifications
-        if (data.skill_data && data.skill_data.in_progress_skills_list && data.skill_data.in_progress_skills_list.length > 0) {
-            data.skill_data.in_progress_skills_list.forEach(skill => {
-                let endDateText = skill.expectedEndDate ? ` (Ends: ${skill.expectedEndDate})` : '';
-                let message = `<b>${skill.name}</b>${endDateText} — Keep going, you're making progress!`;
-                addNotification(message, 'pending');
-            });
-        }
-
-        // Overdue tasks
-        if (data.task_data && data.task_data.overdue > 0) {
-            addNotification(
-                `You have ${data.task_data.overdue} overdue task${data.task_data.overdue > 1 ? 's' : ''}`,
-                'pending'
-            );
-        }
-
-        // Completed tasks
-        if (data.task_data && data.task_data.completed > 0) {
-            addNotification(
-                `You've completed ${data.task_data.completed} task${data.task_data.completed > 1 ? 's' : ''} (${data.task_data.completion_percentage}%)`,
-                'completed'
-            );
-        }
-
-        // Add skill notifications
         if (data.skill_data) {
-            // Skills in progress
-            if (data.skill_data.in_progress > 0) {
-                addNotification(
-                    `You have ${data.skill_data.in_progress} skill${data.skill_data.in_progress > 1 ? 's' : ''} in progress`,
-                    'pending'
-                );
+            // Add in-progress skills
+            if (data.skill_data.in_progress_skills_list && data.skill_data.in_progress_skills_list.length > 0) {
+                totalNotifications += data.skill_data.in_progress_skills_list.length;
+                data.skill_data.in_progress_skills_list.forEach(skill => {
+                    let endDateText = skill.expectedEndDate ? ` (Ends: ${skill.expectedEndDate})` : '';
+                    let message = `<b>${skill.name}</b>${endDateText} — Keep going, you're making progress!`;
+                    addNotification(message, 'pending');
+                });
             }
 
-            // Completed skills
+            // Add completed skills
             if (data.skill_data.completed > 0) {
                 addNotification(
                     `You've completed ${data.skill_data.completed} skill${data.skill_data.completed > 1 ? 's' : ''} (${data.skill_data.completion_percentage}%)`,
@@ -474,26 +465,33 @@ async function fetchAndUpdateNotifications() {
             }
         }
 
-        // Add networking notifications
-        if (data.network_data) {
-            // Goals progress
-            if (data.network_data.total_goals > 0) {
-                addNotification(
-                    `You've completed ${data.network_data.completed_goals} of ${data.network_data.total_goals} goals (${data.network_data.goal_achievement_percentage}%)`,
-                    data.network_data.completed_goals === data.network_data.total_goals ? 'completed' : 'pending'
-                );
-            }
-
-            // Upcoming meetings
-            if (data.network_data.upcoming_meetings && data.network_data.upcoming_meetings.length > 0) {
-                const nextMeeting = data.network_data.upcoming_meetings[0];
-                if (nextMeeting && nextMeeting.contact_name) {
+        // Add upcoming meetings notifications
+        if (data.network_data && data.network_data.upcoming_meetings && data.network_data.upcoming_meetings.length > 0) {
+            totalNotifications += data.network_data.upcoming_meetings.length;
+            data.network_data.upcoming_meetings.forEach(meeting => {
+                if (meeting && meeting.contact_name) {
                     addNotification(
-                        `Next meeting: ${nextMeeting.contact_name}${nextMeeting.next_meeting ? ` on ${new Date(nextMeeting.next_meeting).toLocaleDateString()}` : ''}`,
+                        `Next meeting: ${meeting.contact_name}${meeting.next_meeting ? ` on ${new Date(meeting.next_meeting).toLocaleDateString()}` : ''}`,
                         'pending'
                     );
                 }
-            }
+            });
+        }
+
+        // Add incomplete goals notifications
+        if (data.network_data && data.network_data.goals && data.network_data.goals.by_type) {
+            Object.entries(data.network_data.goals.by_type).forEach(([type, typeData]) => {
+                if (typeData.goals) {
+                    const incompleteGoals = typeData.goals.filter(goal => goal.completed === 0);
+                    totalNotifications += incompleteGoals.length;
+                    if (incompleteGoals.length > 0) {
+                        addNotification(
+                            `You have ${incompleteGoals.length} incomplete ${type} goal${incompleteGoals.length > 1 ? 's' : ''}`,
+                            'pending'
+                        );
+                    }
+                }
+            });
         }
 
         // If no notifications, show a message
@@ -501,8 +499,8 @@ async function fetchAndUpdateNotifications() {
             addNotification('No recent activities to show', 'completed');
         }
 
-        // Update badge count
-        updateNotificationBadge();
+        // Update badge count with the total number of notifications
+        updateNotificationBadge(totalNotifications);
     } catch (error) {
         console.error('Error fetching notifications:', error);
         showToast('Failed to load notifications', 'error');
@@ -534,9 +532,15 @@ function updateNotificationBadge(count) {
             badge.textContent = count;
             badge.style.display = count > 0 ? 'flex' : 'none';
         } else {
-            const pendingCount = document.querySelectorAll('.pending-list .notification-item').length;
-            badge.textContent = pendingCount;
-            badge.style.display = pendingCount > 0 ? 'flex' : 'none';
+            // Count notifications in the same way as the backend
+            const pendingTasks = document.querySelectorAll('.pending-list .notification-item').length;
+            const inProgressSkills = document.querySelectorAll('.pending-list .notification-item').length;
+            const upcomingMeetings = document.querySelectorAll('.pending-list .notification-item').length;
+            const incompleteGoals = document.querySelectorAll('.pending-list .notification-item').length;
+            
+            const totalNotifications = pendingTasks + inProgressSkills + upcomingMeetings + incompleteGoals;
+            badge.textContent = totalNotifications;
+            badge.style.display = totalNotifications > 0 ? 'flex' : 'none';
         }
     }
 }

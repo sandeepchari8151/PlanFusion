@@ -45,6 +45,102 @@ document.addEventListener("DOMContentLoaded", async function () {
     let currentSkillIdForDocuments = null;
     let currentSkillIdForCertificate = null;
 
+    // Add notification function at the top of the file after document.addEventListener
+    function showNotification(message, type = 'success') {
+        // Remove any existing notification
+        const existingNotification = document.querySelector('.notification');
+        if (existingNotification) {
+            existingNotification.remove();
+        }
+
+        // Create notification element
+        const notification = document.createElement('div');
+        notification.className = `notification ${type}`;
+        notification.innerHTML = `
+            <div class="notification-content">
+                <i class="ri-${type === 'success' ? 'check-line' : 'error-warning-line'}"></i>
+                <span>${message}</span>
+            </div>
+        `;
+
+        // Add styles inline to ensure they're applied
+        notification.style.cssText = `
+            position: fixed;
+            top: 20px;
+            right: 20px;
+            padding: 15px 25px;
+            background-color: ${type === 'success' ? '#4CAF50' : '#f44336'};
+            color: white;
+            border-radius: 4px;
+            box-shadow: 0 2px 5px rgba(0,0,0,0.2);
+            z-index: 1000;
+            opacity: 0;
+            transform: translateY(-20px);
+            transition: all 0.3s ease;
+        `;
+
+        notification.querySelector('.notification-content').style.cssText = `
+            display: flex;
+            align-items: center;
+            gap: 10px;
+            font-size: 14px;
+        `;
+
+        // Add to document
+        document.body.appendChild(notification);
+
+        // Trigger animation
+        setTimeout(() => {
+            notification.style.opacity = '1';
+            notification.style.transform = 'translateY(0)';
+        }, 10);
+
+        // Remove after 3 seconds
+        setTimeout(() => {
+            notification.style.opacity = '0';
+            notification.style.transform = 'translateY(-20px)';
+            setTimeout(() => notification.remove(), 300);
+        }, 3000);
+    }
+
+    // Set up certificate upload button event listener
+    if (saveCertificateButton) {
+        saveCertificateButton.addEventListener("click", async function() {
+            const certificateFile = document.getElementById("certificateFile");
+            if (!certificateFile || !certificateFile.files[0]) {
+                alert("Please select a certificate file to upload");
+                return;
+            }
+
+            const formData = new FormData();
+            formData.append("certificate", certificateFile.files[0]);
+            formData.append("skillId", currentSkillIdForCertificate);
+
+            try {
+                const response = await fetch("/api/upload_certificate", {
+                    method: "POST",
+                    body: formData
+                });
+
+                if (!response.ok) {
+                    const errorData = await response.json();
+                    throw new Error(errorData.message || `HTTP error! status: ${response.status}`);
+                }
+
+                const result = await response.json();
+                alert("Certificate uploaded successfully!");
+                certificateModal.classList.remove("show");
+                
+                // Refresh the skills list to show the updated certificate
+                await fetchSkills();
+                renderSkills();
+            } catch (error) {
+                console.error("Error uploading certificate:", error);
+                alert("Could not upload certificate. Please try again. Error: " + error.message);
+            }
+        });
+    }
+
     // --- Platform Links for Learning Source ---
     const learningPlatforms = {
       "Infosys Spring": {
@@ -321,6 +417,9 @@ document.addEventListener("DOMContentLoaded", async function () {
                     <i class="ri-file-list-line"></i>
                     <span class="documents-count">${skill.documents ? skill.documents.length : 0}</span>
                 </button>
+                <button class="certificate-button">
+                    <i class="ri-award-line"></i>
+                </button>
                 <button class="edit-button">
                     <i class="ri-edit-line"></i>
                 </button>
@@ -458,89 +557,36 @@ document.addEventListener("DOMContentLoaded", async function () {
         skillSuggestionsContainer.classList.remove("show");
     });
 
-    // Event listener for clicks on the skill list to handle actions
-    skillList.addEventListener("click", async function (event) {
+    // Add event listeners for skill actions
+    skillList.addEventListener("click", function (event) {
         const target = event.target;
-        const skillItemElement = target.closest(".skill-item");
-        if (!skillItemElement) return;
-        const skillId = skillItemElement.dataset.skillId;
+        const skillItem = target.closest(".skill-item");
+        if (!skillItem) return;
 
-        if (target.classList.contains("delete-button") || target.closest(".delete-button")) {
-            if (confirm('Are you sure you want to delete this skill?')) {
-                try {
-                    const response = await fetch(`/api/skills/${skillId}`, {
-                        method: 'DELETE',
-                    });
-                    if (!response.ok) {
-                        throw new Error(`HTTP error! status: ${response.status}`);
-                    }
-                    skillsData = skillsData.filter(skill => skill._id !== skillId);
-                    await fetchSkills();
-                    renderSkills();
-                } catch (error) {
-                    console.error('Error deleting skill:', error);
-                    alert('Could not delete skill. Please try again.');
-                }
-            }
-        } else if (target.classList.contains("complete-button")) {
-            const skillObject = findSkillObject(skillId);
-            if (skillObject) {
-                const newCompletedStatus = skillObject.completed === 0 ? 100 : 0;
-                try {
-                    const response = await fetch(`/api/skills/${skillId}`, {
-                        method: 'PUT',
-                        headers: {
-                            'Content-Type': 'application/json',
-                        },
-                        body: JSON.stringify({ completed: newCompletedStatus }),
-                    });
-                    if (!response.ok) {
-                        throw new Error(`HTTP error! status: ${response.status}`);
-                    }
-                    const updatedSkill = await response.json();
-                    const index = skillsData.findIndex(skill => skill._id === updatedSkill._id);
-                    if (index !== -1) {
-                        skillsData[index] = updatedSkill;
-                    }
-                    await fetchSkills();
-                    renderSkills();
-                    const updatedSkillItemElement = findSkillItem(skillId);
-                    if (updatedSkillItemElement) {
-                        updateSkillDisplay(updatedSkillItemElement, updatedSkill);
-                        updatedSkillItemElement.querySelector(".skill-name").classList.toggle("completed", updatedSkill.completed === 100);
-                        target.textContent = updatedSkill.completed === 100 ? 'Undo' : 'Complete';
-                        
-                        // Update dashboard immediately
-                        updateSkillProgressBar(updatedSkill);
-                        
-                        if (updatedSkill.completed === 100) {
-                            currentSkillIdForDocuments = skillId;
-                            showDocumentsModal(updatedSkill);
-                        }
-                    } else {
-                        console.error("Error: Could not find skill item after update.");
-                    }
-                } catch (error) {
-                    console.error('Error updating skill:', error);
-                    alert('Could not update skill. Please try again.');
-                }
-            }
-        } else if (target.classList.contains("notes-button")) {
-            const skillObject = findSkillObject(skillId);
-            if (skillObject) {
-                currentSkillIdForNotes = skillId;
-                if (!skillObject.notes) {
-                    skillObject.notes = []; // Initialize notes array if it doesn't exist
-                }
-                showNotesModal(skillObject);
-            } else {
-                console.error('Could not find skill object for ID:', skillId);
-            }
-        } else if (target.classList.contains("documents-button")) {
-            const skillObject = findSkillObject(skillId);
-            if (skillObject) {
-                currentSkillIdForDocuments = skillId;
-                showDocumentsModal(skillObject);
+        const skillId = skillItem.dataset.skillId;
+        const skill = findSkillObject(skillId);
+        if (!skill) return;
+
+        if (target.closest(".complete-button")) {
+            // Handle complete button
+            const newStatus = skill.completed === 100 ? 0 : 100;
+            updateSkillProgress(skillId, newStatus);
+        } else if (target.closest(".notes-button")) {
+            // Handle notes button
+            showNotesModal(skill);
+        } else if (target.closest(".documents-button")) {
+            // Handle documents button
+            showDocumentsModal(skill);
+        } else if (target.closest(".certificate-button")) {
+            // Handle certificate button
+            showCertificateModal(skill);
+        } else if (target.closest(".edit-button")) {
+            // Handle edit button
+            editSkill(skillId);
+        } else if (target.closest(".delete-button")) {
+            // Handle delete button
+            if (confirm(`Are you sure you want to delete the skill "${skill.name}"?`)) {
+                deleteSkill(skillId);
             }
         }
     });
@@ -1035,6 +1081,9 @@ document.addEventListener("DOMContentLoaded", async function () {
             return;
         }
 
+        // Set the current skill ID for document uploads
+        currentSkillIdForDocuments = skill._id;
+
         // Update skill name
         const documentsSkillNameDisplay = document.getElementById("documentsSkillName");
         if (documentsSkillNameDisplay) {
@@ -1263,45 +1312,14 @@ document.addEventListener("DOMContentLoaded", async function () {
     // --- Certificate Modal Logic (Potentially Redundant) ---
     function showCertificateModal(skill) {
         certificateSkillNameDisplay.textContent = skill.name;
-        certificateURLInput.value = skill.completionCertificate || '';
+        // Clear the file input
+        const certificateFileInput = document.getElementById("certificateFile");
+        if (certificateFileInput) {
+            certificateFileInput.value = '';
+        }
         certificateModal.classList.add("show");
         currentSkillIdForCertificate = skill._id;
     }
-    
-    saveCertificateButton.addEventListener("click", async function () {
-        if (currentSkillIdForCertificate) {
-            const certificateURL = certificateURLInput.value.trim();
-            const skill = findSkillObject(currentSkillIdForCertificate);
-            if (skill) {
-                try {
-                    const response = await fetch(`/api/skills/${currentSkillIdForCertificate}`, {
-                        method: 'PUT',
-                        headers: {
-                            'Content-Type': 'application/json',
-                        },
-                        body: JSON.stringify({ completionCertificate: certificateURL }),
-                    });
-                    if (!response.ok) {
-                        throw new Error(`HTTP error! status: ${response.status}`);
-                    }
-                    const updatedSkill = await response.json();
-                    const index = skillsData.findIndex(s => s._id === updatedSkill._id);
-                    if (index !== -1) {
-                        skillsData[index] = updatedSkill;
-                    }
-                    certificateModal.classList.remove("show");
-                    alert(`Certificate saved for ${skill.name}!`);
-                    const documentsSkill = findSkillObject(currentSkillIdForCertificate);
-                    if (documentsSkill) {
-                        showDocumentsModal(documentsSkill); // Update documents modal if it's open
-                    }
-                } catch (error) {
-                    console.error('Error saving certificate:', error);
-                    alert('Could not save certificate. Please try again.');
-                }
-            }
-        }
-    });
     
     if (closeCertificateModal) {
         closeCertificateModal.addEventListener("click", function () {
@@ -1343,31 +1361,47 @@ document.addEventListener("DOMContentLoaded", async function () {
         const skill = findSkillObject(skillId);
         if (!skill) return;
 
+        const editModal = document.getElementById("editModal");
+        const editSkillName = document.getElementById("editSkillName");
+        const editLearningSource = document.getElementById("editLearningSource");
+        const editStartDate = document.getElementById("editStartDate");
+        const editEndDate = document.getElementById("editEndDate");
+        const editSkillLevel = document.getElementById("editSkillLevel");
+        const editSkillPriority = document.getElementById("editSkillPriority");
+        const saveEdit = document.getElementById("saveEdit");
+        const cancelEdit = document.getElementById("cancelEdit");
+        const closeButton = editModal.querySelector(".close-button");
+
         // Populate the form with skill data
-        document.getElementById("newSkill").value = skill.name;
-        document.getElementById("startDate").value = skill.startDate;
-        document.getElementById("expectedEndDate").value = skill.expectedEndDate;
-        document.getElementById("learningSource").value = skill.learningFrom;
-        document.getElementById("skillLevel").value = skill.level;
-        document.getElementById("skillPriority").value = skill.priority;
+        editSkillName.value = skill.name;
+        editLearningSource.value = skill.learningFrom;
+        editStartDate.value = skill.startDate;
+        editEndDate.value = skill.expectedEndDate;
+        editSkillLevel.value = skill.level;
+        editSkillPriority.value = skill.priority;
 
-        // Show the form
-        document.querySelector(".additional-inputs").style.display = "flex";
-        document.querySelector(".initial-input").style.marginBottom = "10px";
-        document.getElementById("addSkill").textContent = "Update Skill";
-        document.getElementById("cancelAdd").style.display = "inline-block";
+        // Initialize flatpickr for date inputs
+        flatpickr(editStartDate, {
+            dateFormat: "Y-m-d",
+            defaultDate: skill.startDate
+        });
+        flatpickr(editEndDate, {
+            dateFormat: "Y-m-d",
+            defaultDate: skill.expectedEndDate
+        });
 
-        // Update the add skill button to handle updates
-        const addButton = document.getElementById("addSkill");
-        const originalClickHandler = addButton.onclick;
-        addButton.onclick = async function() {
+        // Show the modal with animation
+        editModal.classList.add("show");
+
+        // Handle save button click
+        saveEdit.onclick = async function() {
             const updatedSkill = {
-                name: document.getElementById("newSkill").value.trim(),
-                startDate: document.getElementById("startDate").value,
-                expectedEndDate: document.getElementById("expectedEndDate").value,
-                learningFrom: document.getElementById("learningSource").value.trim(),
-                level: document.getElementById("skillLevel").value,
-                priority: document.getElementById("skillPriority").value,
+                name: editSkillName.value.trim(),
+                learningFrom: editLearningSource.value.trim(),
+                startDate: editStartDate.value,
+                expectedEndDate: editEndDate.value,
+                level: editSkillLevel.value,
+                priority: editSkillPriority.value,
                 completed: skill.completed,
                 notes: skill.notes,
                 documents: skill.documents
@@ -1393,24 +1427,30 @@ document.addEventListener("DOMContentLoaded", async function () {
                 }
                 await fetchSkills();
                 renderSkills();
-                resetInputFields();
-                hideAdditionalInputs();
-                addButton.onclick = originalClickHandler;
+                editModal.classList.remove("show");
             } catch (error) {
                 console.error('Error updating skill:', error);
                 alert('Could not update skill. Please try again.');
             }
         };
-    }
 
-    // Add event listener for edit button
-    document.addEventListener("click", function(e) {
-        if (e.target.closest(".edit-button")) {
-            const skillItem = e.target.closest(".skill-item");
-            const skillId = skillItem.dataset.skillId;
-            editSkill(skillId);
-        }
-    });
+        // Handle cancel button click
+        cancelEdit.onclick = function() {
+            editModal.classList.remove("show");
+        };
+
+        // Handle close button click
+        closeButton.onclick = function() {
+            editModal.classList.remove("show");
+        };
+
+        // Handle click outside modal
+        editModal.onclick = function(event) {
+            if (event.target === editModal) {
+                editModal.classList.remove("show");
+            }
+        };
+    }
 
     // Function to handle skill sorting
     function sortSkills(criteria) {
@@ -1439,5 +1479,35 @@ document.addEventListener("DOMContentLoaded", async function () {
         });
         skillList.innerHTML = "";
         skills.forEach(skill => skillList.appendChild(skill));
+    }
+
+    function deleteSkill(skillId) {
+        if (confirm('Are you sure you want to delete this skill?')) {
+            fetch(`/api/skills/${skillId}`, {
+                method: 'DELETE',
+                headers: {
+                    'Content-Type': 'application/json'
+                }
+            })
+            .then(response => {
+                if (response.ok) {
+                    // Remove the skill element from the DOM
+                    const skillElement = document.querySelector(`[data-skill-id="${skillId}"]`);
+                    if (skillElement) {
+                        skillElement.remove();
+                    }
+                    // Show success message
+                    showNotification('Skill deleted successfully', 'success');
+                    // Refresh the skills display using fetchSkills instead of loadSkills
+                    fetchSkills();
+                } else {
+                    throw new Error('Failed to delete skill');
+                }
+            })
+            .catch(error => {
+                console.error('Error:', error);
+                showNotification('Error deleting skill', 'error');
+            });
+        }
     }
 });
